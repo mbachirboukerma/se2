@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Exercise 4 — Raynal Matrix Clock Reconstruction</title>
+<style>
+  :root{
+    --bg:#0e1117; --panel:#171c26; --panel2:#1f2633; --line:#2b3445;
+    --txt:#e7edf5; --muted:#9aa7b8; --accent:#7c5cff; --accent2:#36c5f0;
+    --p1:#ff6b6b; --p2:#4dabf7; --p3:#51cf66; --p4:#fcc419; --recon:#e599f7;
+    --good:#51cf66; --warn:#ffa94d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1280px;margin:0 auto;padding:20px 18px 60px;}
+  header.top{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+  header.top h1{font-size:21px;margin:0;font-weight:700;letter-spacing:.2px}
+  header.top p{margin:0;color:var(--muted);font-size:13px}
+  .badge{display:inline-block;background:var(--panel2);color:var(--accent2);
+    border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:600}
+  /* progress */
+  .progress-row{display:flex;align-items:center;gap:14px;margin:12px 0 8px}
+  .progress-track{flex:1;height:8px;background:var(--panel2);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+  .progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s ease}
+  .step-counter{font-size:13px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .step-counter b{color:var(--txt)}
+  /* svg card */
+  .chart-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px 12px;overflow-x:auto;margin-bottom:14px}
+  svg{display:block;width:100%;height:auto;min-width:760px}
+  .proc-line{stroke:var(--line);stroke-width:2}
+  .proc-line.hl{stroke-width:4;filter:drop-shadow(0 0 6px var(--accent))}
+  .proc-label{font:700 15px sans-serif}
+  .ev{transition:transform .25s ease;transform-origin:center}
+  .ev .dot{stroke:#0e1117;stroke-width:2}
+  .ev.hl .dot{filter:drop-shadow(0 0 7px #fff)}
+  .ev.pop{animation:pop .5s ease}
+  @keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.5)}100%{transform:scale(1)}}
+  .ev .evlabel{font:600 11px sans-serif;fill:var(--muted)}
+  .recon .dot{stroke:var(--recon);stroke-dasharray:3 2}
+  .msg{stroke-width:2.4;fill:none;marker-end:url(#arrow)}
+  .msg.recon{stroke:var(--recon);stroke-dasharray:7 5;marker-end:url(#arrowR)}
+  .msg.flash{animation:flash 1s ease}
+  @keyframes flash{0%,100%{opacity:1}50%{opacity:.35}}
+  .msg-label{font:700 12px sans-serif}
+  .hidden{display:none !important}
+  /* info grid */
+  .grid{display:grid;grid-template-columns:1.25fr .9fr;gap:14px}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+  .card h2{margin:0 0 10px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--accent2)}
+  .pill.q1{color:#ffd43b}.pill.q2{color:#69db7c}.pill.q3{color:#ff8787}
+  .field{margin:10px 0}
+  .field .k{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:3px}
+  .field .v{font-size:14px;line-height:1.5}
+  .rule{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+    background:#0b0f16;border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:#a6e3ff;white-space:pre-wrap}
+  /* matrix */
+  .mtx-label{font-size:12.5px;color:var(--muted);margin-bottom:8px;font-weight:600}
+  table.mtx{border-collapse:collapse;margin:0 auto;font-variant-numeric:tabular-nums}
+  table.mtx th{font:600 11px sans-serif;color:var(--muted);padding:4px 0}
+  table.mtx td{width:46px;height:42px;text-align:center;font:700 16px ui-monospace,monospace;
+    border:1px solid var(--line);background:var(--panel2);transition:all .35s ease}
+  table.mtx td.diag{background:#222b3a}
+  table.mtx td.changed{background:var(--accent);color:#fff;box-shadow:0 0 0 2px var(--accent2) inset;animation:cell 0.7s ease}
+  @keyframes cell{0%{transform:scale(.6)}55%{transform:scale(1.25)}100%{transform:scale(1)}}
+  table.mtx th.rh{padding-right:8px;text-align:right}
+  /* controls */
+  .controls{display:flex;gap:12px;justify-content:center;align-items:center;margin:16px 0 4px}
+  button{font:600 14px inherit;border-radius:10px;border:1px solid var(--line);
+    padding:10px 20px;cursor:pointer;background:var(--panel2);color:var(--txt);transition:.15s}
+  button:hover:not(:disabled){border-color:var(--accent);transform:translateY(-1px)}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  button.primary{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:10px;font-size:12px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:16px;height:0;border-top:3px solid}
+  .sw.solid{border-style:solid}.sw.dash{border-style:dashed}
+  .final-note{margin-top:6px;font-size:12px;color:var(--good)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="badge">Raynal — Message‑Count Matrix Clock</span>
+    <h1>Exercise 4 · Interactive Reconstruction Player</h1>
+    <p>Visualizing the verified Phase 1 solution — same events, same reconstructed messages, same matrix clocks. No new reasoning.</p>
+  </header>
+
+  <div class="progress-row">
+    <div class="progress-track"><div class="progress-fill" id="pfill"></div></div>
+    <div class="step-counter">Step <b id="scur">0</b> / <span id="smax">9</span></div>
+  </div>
+
+  <div class="chart-card">
+    <svg id="svg" viewBox="0 0 1180 470" role="img" aria-label="Chronogram">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#cdd6e3"/>
+        </marker>
+        <marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#e599f7"/>
+        </marker>
+      </defs>
+      <g id="layer-lines"></g>
+      <g id="layer-msgs"></g>
+      <g id="layer-events"></g>
+      <circle id="travel" r="6" fill="#fff" class="hidden"/>
+    </svg>
+    <div class="legend">
+      <span><span class="sw solid" style="border-color:#cdd6e3"></span>Original message</span>
+      <span><span class="sw dash" style="border-color:#e599f7"></span>Reconstructed message (Q1)</span>
+      <span><span class="sw solid" style="border-color:var(--p1)"></span>P1</span>
+      <span><span class="sw solid" style="border-color:var(--p2)"></span>P2</span>
+      <span><span class="sw solid" style="border-color:var(--p3)"></span>P3</span>
+      <span><span class="sw solid" style="border-color:var(--p4)"></span>P4</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2 id="st-title">Original (incomplete) chronogram <span class="pill" id="st-pill"></span></h2>
+      <div class="field"><div class="k">What changed</div><div class="v" id="st-what"></div></div>
+      <div class="field"><div class="k">Why it changed</div><div class="v" id="st-why"></div></div>
+      <div class="field"><div class="k">Raynal rule applied</div><div class="rule" id="st-rule"></div></div>
+      <div class="field"><div class="k">Explanation</div><div class="v" id="st-exp"></div></div>
+    </div>
+    <div class="card">
+      <h2>Matrix Clock</h2>
+      <div class="mtx-label" id="mtx-label"></div>
+      <div id="mtx-host"></div>
+      <div class="final-note hidden" id="final-note">✔ Matches the given matrix at e1.</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="prev">◀ Previous</button>
+    <button id="next" class="primary">Next ▶</button>
+    <button id="restart">↻ Restart</button>
+  </div>
+</div>
+
+<script>
+/* ---------- geometry ---------- */
+const PY = {1:90, 2:190, 3:290, 4:390};
+const PCOL = {1:'var(--p1)',2:'var(--p2)',3:'var(--p3)',4:'var(--p4)'};
+const X0 = 120, X1 = 1140;
+
+/* events: id, proc, x, type, original, label */
+const EVENTS = [
+  {id:'E1', p:3, x:180, t:'send', o:true},
+  {id:'E2', p:2, x:241, t:'send', o:true},
+  {id:'E3', p:1, x:326, t:'local',o:true},
+  {id:'E4', p:4, x:370, t:'recv', o:true},
+  {id:'E5', p:3, x:453, t:'send', o:true},
+  {id:'E6', p:1, x:515, t:'recv', o:true},
+  {id:'E7', p:2, x:630, t:'send', o:true},
+  {id:'E8', p:3, x:684, t:'recv', o:true},
+  {id:'E9', p:1, x:733, t:'send', o:true, label:'e1'},
+  {id:'E10',p:4, x:843, t:'recv', o:true},
+  {id:'E11',p:4, x:917, t:'recv', o:true},
+  {id:'E12',p:4, x:1021,t:'send', o:true},
+  {id:'E13',p:2, x:1080,t:'recv', o:true},
+  {id:'r1', p:4, x:300, t:'send', o:false},  // P4 -> P3 send (reconstructed)
+  {id:'r2', p:3, x:400, t:'recv', o:false},  // P4 -> P3 recv
+  {id:'r3', p:2, x:420, t:'send', o:false},  // P2 -> P1 send
+  {id:'r4', p:1, x:620, t:'recv', o:false},  // P2 -> P1 recv
+];
+const EV = {}; EVENTS.forEach(e=>EV[e.id]=e);
+const pt = id => ({x:EV[id].x, y:PY[EV[id].p]});
+
+/* messages: id, from, to, label, original */
+const MSGS = [
+  {id:'mM2',  a:'E1', b:'E11', label:'M2', lp:'a', o:true},
+  {id:'mP2P4',a:'E2', b:'E4',  o:true},
+  {id:'mP3P1',a:'E5', b:'E6',  o:true},
+  {id:'mP2P3',a:'E7', b:'E8',  o:true},
+  {id:'mM1',  a:'E9', b:'E10', label:'M1', lp:'a', o:true},
+  {id:'mP4P2',a:'E12',b:'E13', o:true},
+  {id:'m7',   a:'r1', b:'r2',  o:false},  // P4 -> P3
+  {id:'m8',   a:'r3', b:'r4',  o:false},  // P2 -> P1
+];
+const MS = {}; MSGS.forEach(m=>MS[m.id]=m);
+
+/* ---------- build SVG ---------- */
+const SVGNS='http://www.w3.org/2000/svg';
+function el(tag,attrs){const n=document.createElementNS(SVGNS,tag);for(const k in attrs)n.setAttribute(k,attrs[k]);return n;}
+const layerLines=document.getElementById('layer-lines');
+const layerMsgs=document.getElementById('layer-msgs');
+const layerEvents=document.getElementById('layer-events');
+
+// process lines + labels
+for(let p=1;p<=4;p++){
+  const ln=el('line',{x1:X0,y1:PY[p],x2:X1,y2:PY[p],class:'proc-line',id:'pl'+p});
+  layerLines.appendChild(ln);
+  const lab=el('text',{x:62,y:PY[p]+5,class:'proc-label',fill:PCOL[p]});
+  lab.textContent='P'+p; layerLines.appendChild(lab);
+}
+// arrowhead colors per process for original lines kept neutral; messages drawn next
+MSGS.forEach(m=>{
+  const A=pt(m.a),B=pt(m.b);
+  const ln=el('line',{x1:A.x,y1:A.y,x2:B.x,y2:B.y,id:m.id,class:'msg'+(m.o?'':' recon')});
+  if(m.o) ln.setAttribute('stroke', '#cdd6e3');
+  layerMsgs.appendChild(ln);
+  if(m.label){
+    const mx=(A.x+B.x)/2, my=(A.y+B.y)/2;
+    const tl=el('text',{x:mx+6,y:my-6,class:'msg-label',id:'lbl-'+m.id,fill:m.o?'#cdd6e3':'var(--recon)'});
+    tl.textContent=m.label; layerMsgs.appendChild(tl);
+  }
+});
+// events
+EVENTS.forEach(e=>{
+  const g=el('g',{class:'ev'+(e.o?'':' recon'),id:'ev-'+e.id});
+  const c=el('circle',{cx:e.x,cy:PY[e.p],r:7,class:'dot',fill:e.o?PCOL[e.p]:'var(--recon)'});
+  g.appendChild(c);
+  if(e.label){
+    const t=el('text',{x:e.x,y:PY[e.p]-14,'text-anchor':'middle',class:'evlabel',fill:'#fff',style:'font-weight:700'});
+    t.textContent=e.label; g.appendChild(t);
+  }
+  layerEvents.appendChild(g);
+});
+
+/* ---------- matrices (verified Phase 1) ---------- */
+const Z=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+const STEPS=[
+  { // 0 initial
+    title:'Original (incomplete) chronogram', pill:'',
+    what:'Nothing yet — the chronogram exactly as given in the exam.',
+    why:'Six messages are drawn. The matrix clock at e1 will reveal which messages are missing.',
+    rule:'—',
+    exp:'Click Next to reconstruct P1\u2019s matrix clock step by step under Raynal\u2019s algorithm.',
+    mlabel:'P1 \u2014 initial (all zeros)',
+    matrix:Z, changed:[], reveal:[], hlProc:null, hlEv:[], anim:[]
+  },
+  { // 1 E3 local
+    title:'E3 \u2014 P1 local event', pill:'',
+    what:'P1 executes a local event.',
+    why:'First event on P1\u2019s timeline.',
+    rule:'Local event:  HM[i][i]++\n\u2192 HM[1][1]++',
+    exp:'P1\u2019s own event counter goes to 1.',
+    mlabel:'P1\u2019s matrix clock',
+    matrix:[[1,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]], changed:[[0,0]],
+    reveal:[], hlProc:1, hlEv:['E3'], anim:[]
+  },
+  { // 2 E1 send M2
+    title:'E1 \u2014 P3 sends M2 \u2192 P4', pill:'',
+    what:'P3 sends message M2 toward P4.',
+    why:'P3\u2019s first event; this is the drawn message M2.',
+    rule:'Send Pi\u2192Pj:  HM[i][i]++, HM[i][j]++\n\u2192 HM[3][3]++, HM[3][4]++',
+    exp:'P3 records one event and one message on channel P3\u2192P4.',
+    mlabel:'P3\u2019s matrix clock',
+    matrix:[[0,0,0,0],[0,0,0,0],[0,0,1,1],[0,0,0,0]], changed:[[2,2],[2,3]],
+    reveal:[], hlProc:3, hlEv:['E1'], anim:['mM2']
+  },
+  { // 3 E5 send P1
+    title:'E5 \u2014 P3 sends \u2192 P1', pill:'',
+    what:'P3 sends a message toward P1.',
+    why:'P3\u2019s second event; the steep P3\u2192P1 arrow.',
+    rule:'Send Pi\u2192Pj:  HM[i][i]++, HM[i][j]++\n\u2192 HM[3][3]++, HM[3][1]++',
+    exp:'This matrix [1,0,2,1] travels with the message to P1.',
+    mlabel:'P3\u2019s matrix clock (attached to the message)',
+    matrix:[[0,0,0,0],[0,0,0,0],[1,0,2,1],[0,0,0,0]], changed:[[2,0],[2,2]],
+    reveal:[], hlProc:3, hlEv:['E5'], anim:['mP3P1']
+  },
+  { // 4 E6 recv
+    title:'E6 \u2014 P1 receives from P3', pill:'',
+    what:'P1 receives P3\u2019s message.',
+    why:'Delivers P3\u2019s knowledge to P1.',
+    rule:'Receive at Pi from Pj: verify delivery\n\u2192 HM[1][1]++, HM[3][1]++\n\u2192 element\u2011wise MAX with received matrix',
+    exp:'Increment then MAX gives P1 knowledge of P3 (2 events) and of channel P3\u2192P4.',
+    mlabel:'P1\u2019s matrix clock',
+    matrix:[[2,0,0,0],[0,0,0,0],[1,0,2,1],[0,0,0,0]], changed:[[0,0],[2,0],[2,2],[2,3]],
+    reveal:[], hlProc:1, hlEv:['E6'], anim:['mP3P1']
+  },
+  { // 5 reconstructed P4->P3
+    title:'Reconstructed message \u2460: P4 \u2192 P3', pill:'Q1',
+    what:'A new message P4 \u2192 P3 is added (with its send & receive events).',
+    why:'HM[4][3] = 1 is a non\u2011zero off\u2011diagonal entry with NO drawn arrow \u2192 a missing message on channel P4\u2192P3.',
+    rule:'Off\u2011diagonal  HM[a][b] = number of messages on channel Pa\u2192Pb',
+    exp:'This message injects P4\u2019s state (HM[4][4]=1, HM[4][3]=1) into the system. P1\u2019s clock is unchanged for now \u2014 this knowledge reaches P1 through the next reconstructed message.',
+    mlabel:'P1\u2019s matrix clock (unchanged)',
+    matrix:[[2,0,0,0],[0,0,0,0],[1,0,2,1],[0,0,0,0]], changed:[],
+    reveal:['ev-r1','ev-r2','m7'], hlProc:4, hlEv:['r1','r2'], anim:['m7'], pop:['r1','r2']
+  },
+  { // 6 reconstructed P2->P1 send
+    title:'Reconstructed message \u2461: P2 \u2192 P1 (send)', pill:'Q1',
+    what:'A new message P2 \u2192 P1 is sent.',
+    why:'HM[2][1] = 1 is the second non\u2011zero off\u2011diagonal with no drawn arrow \u2192 a missing message on channel P2\u2192P1.',
+    rule:'Off\u2011diagonal  HM[a][b] = number of messages on channel Pa\u2192Pb',
+    exp:'P2\u2019s matrix travels with this message, carrying the accumulated knowledge of P2, P3 and P4.',
+    mlabel:'P1\u2019s matrix clock (unchanged)',
+    matrix:[[2,0,0,0],[0,0,0,0],[1,0,2,1],[0,0,0,0]], changed:[],
+    reveal:['ev-r3','m8'], hlProc:2, hlEv:['r3'], anim:['m8'], pop:['r3']
+  },
+  { // 7 reconstructed P1 recv
+    title:'P1 receives from P2 (new event)', pill:'Q1',
+    what:'P1 receives the reconstructed P2\u2192P1 message \u2014 a new 4th event inserted before e1.',
+    why:'Explains HM[1][1]=4 (P1 now has 4 events) and HM[2][1]=1.',
+    rule:'Receive at Pi from Pj: verify delivery\n\u2192 HM[1][1]++, HM[2][1]++\n\u2192 element\u2011wise MAX with received matrix',
+    exp:'The MAX merges P2\u2019s payload: P1 now knows HM[2][2]=2, HM[3][3]=3, and P4\u2019s row (HM[4][3]=1, HM[4][4]=1).',
+    mlabel:'P1\u2019s matrix clock',
+    matrix:[[3,0,0,0],[1,2,0,0],[1,0,3,1],[0,0,1,1]], changed:[[0,0],[1,0],[1,1],[2,2],[3,2],[3,3]],
+    reveal:['ev-r4'], hlProc:1, hlEv:['r4'], anim:['m8'], pop:['r4']
+  },
+  { // 8 e1 send
+    title:'E9 = e1 \u2014 P1 sends M1 \u2192 P4', pill:'Q2',
+    what:'P1 sends message M1 to P4. This is the event e1.',
+    why:'P1\u2019s final event before the reference clock is taken.',
+    rule:'Send Pi\u2192Pj:  HM[i][i]++, HM[i][j]++\n\u2192 HM[1][1]++, HM[1][4]++',
+    exp:'P1\u2019s clock at e1 = [[4,0,0,1],[1,2,0,0],[1,0,3,1],[0,0,1,1]] \u2014 exactly the given matrix.',
+    mlabel:'P1\u2019s matrix clock at e1 (FINAL)',
+    matrix:[[4,0,0,1],[1,2,0,0],[1,0,3,1],[0,0,1,1]], changed:[[0,0],[0,3]],
+    reveal:[], hlProc:1, hlEv:['E9'], anim:['mM1'], final:true
+  },
+  { // 9 Q3
+    title:'Causal delivery condition at P4', pill:'Q3',
+    what:'Delivery order of M2 and M1 at P4 is constrained.',
+    why:'M1 carries P1\u2019s clock, in which HM[3][4]=1 (P1 knows P3 already sent M2 to P4).',
+    rule:'Deliver m from Pj at Pi  iff\n  W[j][i] = HM[j][i] + 1   AND\n  \u2200 k\u2260j :  W[k][i] \u2264 HM[k][i]',
+    exp:'For M1 at P4: W[3][4]=1 requires HM4[3][4] \u2265 1, so M2 (P3\u2192P4) must be delivered BEFORE M1. If M1 arrives first it must be buffered/delayed until M2 is delivered.',
+    mlabel:'P1\u2019s matrix clock at e1 (FINAL)',
+    matrix:[[4,0,0,1],[1,2,0,0],[1,0,3,1],[0,0,1,1]], changed:[],
+    reveal:[], hlProc:4, hlEv:['E10','E11'], anim:['mM2','mM1'], final:true
+  },
+];
+const MAXSTEP=STEPS.length-1;
+document.getElementById('smax').textContent=MAXSTEP;
+
+/* ---------- render ---------- */
+let cur=0;
+
+function buildMatrix(matrix,changed){
+  const chSet=new Set(changed.map(c=>c[0]+'-'+c[1]));
+  let html='<table class="mtx"><tr><th></th><th>\u2192P1</th><th>\u2192P2</th><th>\u2192P3</th><th>\u2192P4</th></tr>';
+  for(let r=0;r<4;r++){
+    html+='<tr><th class="rh">P'+(r+1)+'</th>';
+    for(let c=0;c<4;c++){
+      let cls=(r===c)?'diag':'';
+      if(chSet.has(r+'-'+c)) cls+=' changed';
+      html+='<td class="'+cls.trim()+'">'+matrix[r][c]+'</td>';
+    }
+    html+='</tr>';
+  }
+  html+='</table>';
+  return html;
+}
+
+// element visibility per cumulative reveal
+function computeVisible(step){
+  const vis=new Set();
+  // originals always visible
+  EVENTS.forEach(e=>{ if(e.o) vis.add('ev-'+e.id); });
+  MSGS.forEach(m=>{ if(m.o){ vis.add(m.id); if(m.label) vis.add('lbl-'+m.id);} });
+  for(let s=1;s<=step;s++){
+    (STEPS[s].reveal||[]).forEach(id=>{
+      vis.add(id);
+      if(id.startsWith('m')&&MS[id]&&MS[id].label) vis.add('lbl-'+id);
+    });
+  }
+  return vis;
+}
+
+let animTimer=null, rafId=null;
+function stopTravel(){
+  if(rafId) cancelAnimationFrame(rafId);
+  document.getElementById('travel').classList.add('hidden');
+}
+function travel(msgId,delay,color){
+  const m=MS[msgId]; if(!m) return;
+  const A=pt(m.a), B=pt(m.b);
+  const dot=document.getElementById('travel');
+  dot.setAttribute('fill',color||'#fff');
+  const dur=900; let start=null;
+  function frame(ts){
+    if(start===null) start=ts;
+    let k=(ts-start)/dur; if(k>1)k=1;
+    dot.setAttribute('cx',A.x+(B.x-A.x)*k);
+    dot.setAttribute('cy',A.y+(B.y-A.y)*k);
+    if(k<1) rafId=requestAnimationFrame(frame); else dot.classList.add('hidden');
+  }
+  dot.classList.remove('hidden');
+  setTimeout(()=>{ rafId=requestAnimationFrame(frame); }, delay||0);
+}
+
+function render(){
+  const S=STEPS[cur];
+  // text
+  document.getElementById('st-title').firstChild.textContent=S.title+' ';
+  const pill=document.getElementById('st-pill');
+  pill.textContent=S.pill||''; pill.className='pill'+(S.pill?(' '+S.pill.toLowerCase()):'');
+  pill.style.display=S.pill?'inline-block':'none';
+  document.getElementById('st-what').textContent=S.what;
+  document.getElementById('st-why').textContent=S.why;
+  document.getElementById('st-rule').textContent=S.rule;
+  document.getElementById('st-exp').textContent=S.exp;
+  document.getElementById('mtx-label').textContent=S.mlabel;
+  document.getElementById('mtx-host').innerHTML=buildMatrix(S.matrix,S.changed);
+  document.getElementById('final-note').classList.toggle('hidden', !S.final);
+  // progress
+  document.getElementById('scur').textContent=cur;
+  document.getElementById('pfill').style.width=(cur/MAXSTEP*100)+'%';
+  // visibility
+  const vis=computeVisible(cur);
+  EVENTS.forEach(e=>{ document.getElementById('ev-'+e.id).classList.toggle('hidden', !vis.has('ev-'+e.id)); });
+  MSGS.forEach(m=>{
+    document.getElementById(m.id).classList.toggle('hidden', !vis.has(m.id));
+    if(m.label){const l=document.getElementById('lbl-'+m.id); if(l) l.classList.toggle('hidden', !vis.has(m.id));}
+  });
+  // reset highlights
+  for(let p=1;p<=4;p++) document.getElementById('pl'+p).classList.remove('hl');
+  document.querySelectorAll('.ev').forEach(g=>g.classList.remove('hl','pop'));
+  MSGS.forEach(m=>document.getElementById(m.id).classList.remove('flash'));
+  // apply highlights
+  if(S.hlProc) document.getElementById('pl'+S.hlProc).classList.add('hl');
+  (S.hlEv||[]).forEach(id=>{const g=document.getElementById('ev-'+id); if(g) g.classList.add('hl');});
+  (S.pop||[]).forEach(id=>{const g=document.getElementById('ev-'+id); if(g){ void g.offsetWidth; g.classList.add('pop'); }});
+  // animations
+  stopTravel();
+  (S.anim||[]).forEach((mid,i)=>{
+    const mEl=document.getElementById(mid);
+    if(mEl && vis.has(mid)){ mEl.classList.add('flash'); }
+    const col=(MS[mid]&&!MS[mid].o)?'#e599f7':'#fff';
+    if(vis.has(mid)) travel(mid, i*650, col);
+  });
+  // controls
+  document.getElementById('prev').disabled=(cur===0);
+  document.getElementById('next').disabled=(cur===MAXSTEP);
+}
+
+document.getElementById('next').onclick=()=>{ if(cur<MAXSTEP){cur++;render();} };
+document.getElementById('prev').onclick=()=>{ if(cur>0){cur--;render();} };
+document.getElementById('restart').onclick=()=>{ cur=0; render(); };
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight') document.getElementById('next').click();
+  if(e.key==='ArrowLeft') document.getElementById('prev').click();
+});
+
+render();
+</script>
+</body>
+</html>
