@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>درس تفاعلي: Raynal Matrix Clock</title>
+<style>
+:root{
+ --bg:#0f1220; --panel:#171a2b; --panel2:#1e2238; --ink:#e9ecf6; --muted:#9aa3c0;
+ --line:#2c3150; --accent:#6c8cff; --accent2:#8a6cff; --ok:#37d39b; --warn:#ffcf5c;
+ --red:#ff5c7a; --redsoft:#3a1e2b; --oksoft:#15352b; --chip:#232844;
+ --p1:#6c8cff; --p2:#37d39b; --p3:#ffb454; --p4:#ff5c7a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{overflow-x:hidden}
+body{font-family:"Noto Sans Arabic","Segoe UI",system-ui,sans-serif;background:radial-gradient(1200px 600px at 80% -10%,#1c2140 0,var(--bg) 60%);color:var(--ink);line-height:1.85;direction:rtl;overflow-x:hidden;-webkit-text-size-adjust:100%}
+.ltr{direction:ltr;unicode-bidi:isolate}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 14px 48px}
+h1,h2,h3{line-height:1.4;margin:0 0 .4em}
+.hero{text-align:center;padding:20px 8px 6px}
+.hero .ey{display:inline-block;font-size:.72rem;letter-spacing:.14em;color:var(--accent);background:var(--chip);border:1px solid var(--line);padding:5px 12px;border-radius:999px;margin-bottom:12px}
+.hero h1{font-size:1.38rem;font-weight:800;background:linear-gradient(90deg,#fff,#aeb9ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--muted);max-width:760px;margin:0 auto;font-size:.94rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 14px;margin:12px 0;box-shadow:0 16px 40px -28px #000}
+.card h2{font-size:1.08rem;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.badge{font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:8px;background:var(--chip);color:var(--accent);border:1px solid var(--line);white-space:nowrap}
+.q{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:12px;margin:10px 0;background:var(--panel2)}
+.q .n{flex:0 0 auto;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-weight:800;background:var(--accent);color:#0b0e1c}
+.note{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(180deg,#1a2440,#161a2e);margin:12px 0}
+.note .ic{font-size:1.2rem;flex:0 0 auto;line-height:1.4}
+.note>div:last-child{min-width:0}
+.note.blue{border-color:#33509a;background:linear-gradient(180deg,#152040,#13203f)}
+.note.green{border-color:#1f6b54}
+.note.red{border-color:#7a2f44}
+.note.warn{border-color:#7a5f24}
+.kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0c0f1d;border:1px solid var(--line);border-radius:6px;padding:1px 7px;color:#cdd6ff}
+/* player */
+.player{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 30px 70px -40px #000;max-width:100%}
+.pbar{display:grid;grid-template-columns:1fr auto;grid-template-areas:"chip count" "bar bar";align-items:center;gap:8px 10px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.phasechip{grid-area:chip;font-size:.72rem;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--line);justify-self:start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress{grid-area:bar;flex:1;min-width:0;width:100%;height:9px;background:#0c0f1d;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+.progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s ease}
+.pcount{grid-area:count;font-size:.82rem;color:var(--muted);white-space:nowrap;justify-self:end}
+.ph-intro{color:var(--muted)}
+.ph-recon{color:var(--p4);border-color:#5a2740}
+.ph-compute{color:var(--accent);border-color:#33509a}
+.ph-deliv{color:var(--warn);border-color:#6f5620}
+.ph-final{color:var(--ok);border-color:#1f6b54}
+.stage{display:grid;grid-template-columns:1fr;gap:0;min-width:0}
+.diagram{padding:12px 10px;border-left:none;border-bottom:1px solid var(--line);background:#0d1020;min-width:0}
+#svgHost{max-width:100%;overflow:hidden}
+.diagram svg{width:100%;height:auto;display:block;max-width:100%}
+.side{padding:16px 14px;min-height:0;min-width:0;overflow-wrap:anywhere}
+.steptitle{font-size:1.05rem;font-weight:800;margin-bottom:6px;line-height:1.45}
+.steptitle .et{font-family:ui-monospace,monospace;color:var(--accent);font-weight:700;word-break:break-all}
+.sec{margin:12px 0}
+.sec h4{font-size:.78rem;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin:0 0 5px;font-weight:700}
+.sec p{margin:0;font-size:.92rem}
+.rulebox{border:1px dashed #44508a;border-radius:12px;padding:8px 10px;background:#121634;font-size:.88rem;overflow-wrap:anywhere;word-break:break-word}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+.kvs{color:var(--accent2);font-weight:700}
+/* matrix */
+.mwrap{display:flex;flex-direction:column;align-items:center;margin-top:8px;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.mwrap .ltr{max-width:100%}
+.mlabel{font-size:.8rem;color:var(--muted);margin-bottom:8px;text-align:center}
+table.mx{border-collapse:separate;border-spacing:3px;direction:ltr;margin:0 auto}
+table.mx td,table.mx th{width:34px;height:32px;text-align:center;font-family:ui-monospace,monospace;font-size:.88rem;border-radius:7px}
+table.mx th{color:var(--muted);font-size:.72rem;font-weight:700;background:transparent}
+table.mx td{background:#0c0f1d;border:1px solid var(--line);color:#dfe5ff;transition:background .35s,transform .35s,color .35s}
+table.mx td.hl{background:var(--warn);color:#1a1300;font-weight:800;transform:scale(1.08);box-shadow:0 6px 18px -6px var(--warn)}
+table.mx td.dim{color:#5a648c}
+.corner{color:#5663a0}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 14px;border-top:1px solid var(--line);background:var(--panel2)}
+.btns #restartBtn{grid-column:1/-1}
+button{font-family:inherit;font-size:.88rem;font-weight:700;border-radius:11px;padding:11px 14px;border:1px solid var(--line);cursor:pointer;transition:.18s;color:var(--ink);background:var(--chip);width:100%;min-height:44px}
+button:hover{transform:translateY(-1px)}
+button.primary{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#0b0e1c;border:none}
+button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+button.ghost{background:transparent}
+/* svg bits */
+.timeline{stroke:#3a4170;stroke-width:2}
+.plabel{font:700 14px ui-monospace,monospace}
+.ev{cursor:default}
+.ev circle{transition:opacity .4s,r .25s,fill .25s}
+.ev text{font:600 10px ui-monospace,monospace;fill:#aeb6dd}
+.msg{transition:opacity .5s}
+.msg path{fill:none;stroke-width:2.2;marker-end:url(#ah)}
+.msg.red path{stroke-width:2.4;marker-end:url(#ahr)}
+.msg text{font:600 11px ui-monospace,monospace}
+.hidden{opacity:0!important;pointer-events:none}
+.cur circle{stroke:#fff;stroke-width:3}
+.pulse{animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{0%,100%{filter:drop-shadow(0 0 0 rgba(255,255,255,0))}50%{filter:drop-shadow(0 0 7px rgba(255,255,255,.85))}}
+.flydot{fill:#fff;stroke:#0b0e1c;stroke-width:1.5}
+.legend{display:flex;gap:8px 12px;flex-wrap:wrap;justify-content:center;font-size:.74rem;color:var(--muted);padding:6px 0 2px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-inline-start:5px;vertical-align:middle}
+.final-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,148px),1fr));gap:10px;margin-top:10px}
+.fm{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:8px;min-width:0}
+.fm .t{font-family:ui-monospace,monospace;color:var(--accent);font-weight:700;text-align:center;margin-bottom:6px;font-size:.8rem;word-break:break-all}
+.fm table{margin:0 auto}
+.takeaways li{margin:7px 0}
+/* tablet */
+@media(min-width:600px){
+ .wrap{padding:22px 18px 64px}
+ .hero{padding:24px 14px 8px}
+ .hero .ey{font-size:.76rem;letter-spacing:.16em;padding:6px 13px}
+ .hero h1{font-size:1.65rem}
+ .hero p{font-size:1rem}
+ .card{padding:18px 20px;margin:15px 0;border-radius:16px}
+ .card h2{font-size:1.16rem;gap:10px}
+ .note{padding:13px 15px;gap:11px;margin:13px 0}
+ .pbar{display:flex;flex-wrap:wrap;align-items:center;padding:13px 16px;gap:12px}
+ .phasechip{max-width:none}
+ .progress{flex:1;min-width:140px}
+ .side{padding:18px 18px}
+ .steptitle{font-size:1.12rem}
+ .sec{margin:13px 0}
+ .sec p{font-size:.95rem}
+ .rulebox{padding:9px 12px;font-size:.92rem}
+ table.mx{border-spacing:4px}
+ table.mx td,table.mx th{width:38px;height:36px;font-size:.95rem}
+ table.mx th{font-size:.76rem}
+ table.mx td.hl{transform:scale(1.1)}
+ .btns{display:flex;flex-wrap:wrap;justify-content:space-between;padding:14px 16px}
+ .btns #restartBtn{grid-column:auto}
+ button{width:auto;min-width:0;font-size:.92rem;padding:11px 18px}
+ .legend{gap:12px 14px;font-size:.78rem}
+ .final-grid{gap:12px}
+ .fm{padding:9px}
+ .fm .t{font-size:.83rem}
+}
+/* desktop — preserve original layout */
+@media(min-width:921px){
+ .wrap{padding:28px 20px 80px}
+ .hero{padding:30px 18px 10px}
+ .hero .ey{font-size:.78rem;letter-spacing:.18em;padding:6px 14px;margin-bottom:14px}
+ .hero h1{font-size:2.05rem}
+ .hero p{font-size:1.04rem}
+ .card{padding:22px 24px;margin:18px 0;border-radius:18px}
+ .card h2{font-size:1.25rem;flex-wrap:nowrap;gap:10px}
+ .q{gap:12px;padding:12px 14px;align-items:center}
+ .note{padding:14px 16px;gap:12px;margin:14px 0}
+ .note .ic{font-size:1.3rem}
+ .player{border-radius:20px}
+ .pbar{display:flex;flex-wrap:wrap;align-items:center;padding:14px 18px;gap:14px}
+ .phasechip{font-size:.74rem;padding:5px 11px}
+ .progress{min-width:160px}
+ .pcount{font-size:.85rem}
+ .stage{grid-template-columns:1.35fr .95fr}
+ .diagram{padding:16px;border-left:1px solid var(--line);border-bottom:none}
+ .side{padding:20px 22px;min-height:420px}
+ .steptitle{font-size:1.2rem}
+ .steptitle .et{word-break:normal}
+ .sec{margin:14px 0}
+ .sec h4{font-size:.8rem}
+ .sec p{font-size:.98rem}
+ .rulebox{padding:10px 13px;font-size:.95rem}
+ .mlabel{font-size:.82rem}
+ table.mx td,table.mx th{width:40px;height:38px;font-size:1rem;border-radius:8px}
+ table.mx th{font-size:.78rem}
+ table.mx td.hl{transform:scale(1.12)}
+ .btns{display:flex;gap:10px;justify-content:space-between;padding:16px 18px}
+ button{font-size:.95rem;padding:11px 20px}
+ .legend{gap:16px;font-size:.8rem;padding:8px 0 2px}
+ .final-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+ .fm{padding:10px}
+ .fm .t{font-size:.85rem;word-break:normal}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section class="hero">
+    <span class="ey">Raynal &nbsp;•&nbsp; Matrix Clock</span>
+    <h1>درسٌ تفاعلي: حلّ تمرين الساعة المصفوفية (Matrix Clock) خطوة بخطوة</h1>
+    <p>سنبدأ من المخطط الأصلي للامتحان، نُعيد بناء الرسائل والأحداث الناقصة بالتبرير، ثم نحسب مصفوفة الساعة لكل حدث على حدة باستعمال خوارزمية <span class="ltr">Raynal</span> الرسمية — حتى تتمكّن من حلّ أي تمرين مشابه بنفسك.</p>
+  </section>
+
+  <div class="card">
+    <h2><span class="badge">نص التمرين</span> المعطيات الأصلية</h2>
+    <p>لدينا نظام موزّع مكوّن من أربعة مسارات (Processus): <span class="ltr mono">P1, P2, P3, P4</span>. تتبادل هذه المسارات رسائل فيما بينها، وكل مسار يحتفظ بمصفوفة ساعة <span class="ltr">Matrix Clock</span> من الحجم <span class="ltr mono">4×4</span>.</p>
+    <p>المخطط الزمني (Chronogramme) المعطى في الامتحان <strong>غير مكتمل</strong>: بعض الرسائل لم تُرسم، لكنّ الامتحان يعطينا قيمة مصفوفة الساعة عند الحدث <span class="ltr mono">e1</span> (وهو حدث الإرسال على <span class="ltr mono">P1</span>):</p>
+    <div class="mwrap"><div class="mlabel">مصفوفة الساعة المعطاة عند <span class="ltr mono">e1</span></div><div id="givenMx" class="ltr"></div></div>
+    <div class="note blue"><div class="ic">🎯</div><div><strong>الهدف من التمرين</strong><p>أن نستعمل المعلومة الوحيدة المؤكَّدة (مصفوفة <span class="ltr mono">e1</span>) كـ«دليل» لاكتشاف ما هو ناقص في الرسم، ثم نُعيد حساب كل المصفوفات من الصفر للتأكّد من صحّة المخطط واحترامه لشرط التسليم (Condition de délivrance).</p></div></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="badge">الأسئلة</span> المطلوب</h2>
+    <div class="q"><div class="n">1</div><div>أكمل الشكل بإضافة الرسائل الناقصة، مع <strong>تبرير</strong> وجود كل رسالة. <span class="badge">1.5 ن</span></div></div>
+    <div class="q"><div class="n">2</div><div>احسب <strong>تواريخ (مصفوفات) كل الأحداث</strong> على المسارات الأربعة.</div></div>
+    <div class="q"><div class="n">3</div><div>إذا وُجد <strong>إشكال في شرط التسليم</strong> (Condition de délivrance)، صحِّحه في المخطط.</div></div>
+  </div>
+
+  <div class="note green"><div class="ic">📘</div><div><strong>تذكير سريع بقواعد <span class="ltr">Raynal Matrix Clock</span></strong>
+    <p>كل مسار <span class="ltr mono">Pi</span> يملك مصفوفة <span class="ltr mono">M</span> مبدئيًا أصفار. الصف <span class="ltr mono">i</span> يمثّل ما يعرفه <span class="ltr mono">Pi</span> عن إرسالاته، وباقي الصفوف ما يعرفه عن غيره.</p>
+    <ul>
+      <li><strong>حدث محلي:</strong> <span class="ltr mono">M[i][i] += 1</span> فقط.</li>
+      <li><strong>إرسال (Send) إلى <span class="ltr mono">Pj</span>:</strong> <span class="ltr mono">M[i][i] += 1</span> ثم <span class="ltr mono">M[i][j] += 1</span>، ثم تُرفق نسخة من <span class="ltr mono">M</span> مع الرسالة.</li>
+      <li><strong>استقبال (Receive) من <span class="ltr mono">Pj</span> لرسالة تحمل <span class="ltr mono">W</span>:</strong> <span class="ltr mono">M[i][i] += 1</span> ثم <span class="ltr mono">M[x][y] = max(M[x][y], W[x][y])</span> لكل خانة.</li>
+      <li><strong>شرط التسليم</strong> عند استقبال <span class="ltr mono">Pi</span> رسالةً من <span class="ltr mono">Pj</span> تحمل <span class="ltr mono">W</span>: يجب أن يكون <span class="ltr mono">W[j][i] = M[j][i] + 1</span> و <span class="ltr mono">W[k][i] ≤ M[k][i]</span> لكل <span class="ltr mono">k ≠ j</span>.</li>
+    </ul></div></div>
+
+  <div class="player" id="player">
+    <div class="pbar">
+      <span class="phasechip" id="phaseChip">المرحلة</span>
+      <div class="progress"><i id="progFill"></i></div>
+      <span class="pcount" id="pcount">0 / 0</span>
+    </div>
+    <div class="stage">
+      <div class="diagram">
+        <div id="svgHost"></div>
+        <div class="legend">
+          <span><i style="background:var(--p1)"></i><span class="ltr mono">P1</span></span>
+          <span><i style="background:var(--p2)"></i><span class="ltr mono">P2</span></span>
+          <span><i style="background:var(--p3)"></i><span class="ltr mono">P3</span></span>
+          <span><i style="background:var(--p4)"></i><span class="ltr mono">P4</span></span>
+          <span><i style="background:var(--red)"></i> رسالة مُعاد بناؤها</span>
+        </div>
+      </div>
+      <div class="side" id="side"></div>
+    </div>
+    <div class="btns">
+      <button id="prevBtn" class="ghost">◀ السابق</button>
+      <button id="restartBtn" class="ghost">↻ إعادة التشغيل</button>
+      <button id="nextBtn" class="primary">التالي ▶</button>
+    </div>
+  </div>
+
+  <p style="text-align:center;color:var(--muted);font-size:.85rem;margin-top:26px">درس تفاعلي مبني على خوارزمية <span class="ltr">Raynal Matrix Clock</span> — كل المصفوفات محسوبة من الصفر ومُتحقَّق منها.</p>
+</div>
+<script>
+const GEN = {"c_1_1": {"proc": 1, "event": "e(1,1)", "kind": "local", "matrix": [[1, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], "hl": [[1, 1]]}, "c_2_1": {"proc": 2, "event": "e(2,1)", "kind": "local", "matrix": [[0, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], "hl": [[2, 2]]}, "c_3_1": {"proc": 3, "event": "e(3,1)", "kind": "send", "matrix": [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 1, 1], [0, 0, 0, 0]], "hl": [[3, 3], [3, 4]], "msg": {"id": "msg_E", "name": "M2", "fromP": 3, "toP": 4}}, "c_4_1": {"proc": 4, "event": "e(4,1)", "kind": "send", "matrix": [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 1, 1]], "hl": [[4, 3], [4, 4]], "msg": {"id": "msg_H", "name": "P4→P3", "fromP": 4, "toP": 3}}, "c_2_2": {"proc": 2, "event": "e(2,2)", "kind": "send", "matrix": [[0, 0, 0, 0], [1, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], "hl": [[2, 1], [2, 2]], "msg": {"id": "msg_G", "name": "P2→P1", "fromP": 2, "toP": 1}}, "c_1_2": {"proc": 1, "event": "e(1,2)", "kind": "recv", "matrix": [[2, 0, 0, 0], [1, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], "hl": [[1, 1], [2, 1], [2, 2]], "msg": {"id": "msg_G", "name": "P2→P1", "fromP": 2, "toP": 1}, "msgMatrix": [[0, 0, 0, 0], [1, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], "prev": [[1, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]}, "c_2_3": {"proc": 2, "event": "e(2,3)", "kind": "send", "matrix": [[0, 0, 0, 0], [1, 3, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0]], "hl": [[2, 2], [2, 4]], "msg": {"id": "msg_A", "name": "P2→P4", "fromP": 2, "toP": 4}}, "c_3_2": {"proc": 3, "event": "e(3,2)", "kind": "recv", "matrix": [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 2, 1], [0, 0, 1, 1]], "hl": [[3, 3], [4, 3], [4, 4]], "msg": {"id": "msg_H", "name": "P4→P3", "fromP": 4, "toP": 3}, "msgMatrix": [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 1, 1]], "prev": [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 1, 1], [0, 0, 0, 0]]}, "c_2_4": {"proc": 2, "event": "e(2,4)", "kind": "send", "matrix": [[0, 0, 0, 0], [1, 4, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], "hl": [[2, 2], [2, 3]], "msg": {"id": "msg_B", "name": "P2→P3", "fromP": 2, "toP": 3}}, "c_3_3": {"proc": 3, "event": "e(3,3)", "kind": "send", "matrix": [[0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 3, 1], [0, 0, 1, 1]], "hl": [[3, 1], [3, 3]], "msg": {"id": "msg_C", "name": "P3→P1", "fromP": 3, "toP": 1}}, "c_4_2": {"proc": 4, "event": "e(4,2)", "kind": "recv", "matrix": [[0, 0, 0, 0], [1, 3, 0, 1], [0, 0, 0, 0], [0, 0, 1, 2]], "hl": [[2, 1], [2, 2], [2, 4], [4, 4]], "msg": {"id": "msg_A", "name": "P2→P4", "fromP": 2, "toP": 4}, "msgMatrix": [[0, 0, 0, 0], [1, 3, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0]], "prev": [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 1, 1]]}, "c_1_3": {"proc": 1, "event": "e(1,3)", "kind": "recv", "matrix": [[3, 0, 0, 0], [1, 2, 0, 0], [1, 0, 3, 1], [0, 0, 1, 1]], "hl": [[1, 1], [3, 1], [3, 3], [3, 4], [4, 3], [4, 4]], "msg": {"id": "msg_C", "name": "P3→P1", "fromP": 3, "toP": 1}, "msgMatrix": [[0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 3, 1], [0, 0, 1, 1]], "prev": [[2, 0, 0, 0], [1, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]}, "c_3_4": {"proc": 3, "event": "e(3,4)", "kind": "recv", "matrix": [[0, 0, 0, 0], [1, 4, 1, 1], [1, 0, 4, 1], [0, 0, 1, 1]], "hl": [[2, 1], [2, 2], [2, 3], [2, 4], [3, 3]], "msg": {"id": "msg_B", "name": "P2→P3", "fromP": 2, "toP": 3}, "msgMatrix": [[0, 0, 0, 0], [1, 4, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], "prev": [[0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 3, 1], [0, 0, 1, 1]]}, "c_1_4": {"proc": 1, "event": "e(1,4)", "kind": "send", "matrix": [[4, 0, 0, 1], [1, 2, 0, 0], [1, 0, 3, 1], [0, 0, 1, 1]], "hl": [[1, 1], [1, 4]], "msg": {"id": "msg_D", "name": "M1", "fromP": 1, "toP": 4}}, "c_4_3": {"proc": 4, "event": "e(4,3)", "kind": "recv", "matrix": [[0, 0, 0, 0], [1, 3, 0, 1], [0, 0, 1, 1], [0, 0, 1, 3]], "hl": [[3, 3], [3, 4], [4, 4]], "msg": {"id": "msg_E", "name": "M2", "fromP": 3, "toP": 4}, "msgMatrix": [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 1, 1], [0, 0, 0, 0]], "prev": [[0, 0, 0, 0], [1, 3, 0, 1], [0, 0, 0, 0], [0, 0, 1, 2]]}, "c_4_4": {"proc": 4, "event": "e(4,4)", "kind": "recv", "matrix": [[4, 0, 0, 1], [1, 3, 0, 1], [1, 0, 3, 1], [0, 0, 1, 4]], "hl": [[1, 1], [1, 4], [3, 1], [3, 3], [4, 4]], "msg": {"id": "msg_D", "name": "M1", "fromP": 1, "toP": 4}, "msgMatrix": [[4, 0, 0, 1], [1, 2, 0, 0], [1, 0, 3, 1], [0, 0, 1, 1]], "prev": [[0, 0, 0, 0], [1, 3, 0, 1], [0, 0, 1, 1], [0, 0, 1, 3]]}, "c_4_5": {"proc": 4, "event": "e(4,5)", "kind": "send", "matrix": [[4, 0, 0, 1], [1, 3, 0, 1], [1, 0, 3, 1], [0, 1, 1, 5]], "hl": [[4, 2], [4, 4]], "msg": {"id": "msg_F", "name": "P4→P2", "fromP": 4, "toP": 2}}, "c_2_5": {"proc": 2, "event": "e(2,5)", "kind": "recv", "matrix": [[4, 0, 0, 1], [1, 5, 1, 1], [1, 0, 3, 1], [0, 1, 1, 5]], "hl": [[1, 1], [1, 4], [2, 2], [3, 1], [3, 3], [3, 4], [4, 2], [4, 3], [4, 4]], "msg": {"id": "msg_F", "name": "P4→P2", "fromP": 4, "toP": 2}, "msgMatrix": [[4, 0, 0, 1], [1, 3, 0, 1], [1, 0, 3, 1], [0, 1, 1, 5]], "prev": [[0, 0, 0, 0], [1, 4, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]]}, "given": {"matrix": [[4, 0, 0, 1], [1, 2, 0, 0], [1, 0, 3, 1], [0, 0, 1, 1]]}, "deliv": {"p4after_e42": [[0, 0, 0, 0], [1, 3, 0, 1], [0, 0, 0, 0], [0, 0, 1, 2]], "W_M1": [[4, 0, 0, 1], [1, 2, 0, 0], [1, 0, 3, 1], [0, 0, 1, 1]]}};
+/* ===== Geometry ===== */
+const SVGNS="http://www.w3.org/2000/svg";
+const PCOL={1:"#6c8cff",2:"#37d39b",3:"#ffb454",4:"#ff5c7a"};
+const PROC=[{p:1,y:40},{p:2,y:110},{p:3,y:180},{p:4,y:250}];
+const EV={
+ ev_1_1:{p:1,x:140,t:"e(1,1)"}, ev_1_2:{p:1,x:330,t:"e(1,2)"}, ev_1_3:{p:1,x:520,t:"e(1,3)"}, ev_1_4:{p:1,x:615,t:"e1"},
+ ev_2_1:{p:2,x:140,t:"e(2,1)"}, ev_2_2:{p:2,x:235,t:"e(2,2)"}, ev_2_3:{p:2,x:330,t:"e(2,3)"}, ev_2_4:{p:2,x:425,t:"e(2,4)"}, ev_2_5:{p:2,x:995,t:"e(2,5)"},
+ ev_3_1:{p:3,x:140,t:"e(3,1)"}, ev_3_2:{p:3,x:330,t:"e(3,2)"}, ev_3_3:{p:3,x:425,t:"e(3,3)"}, ev_3_4:{p:3,x:520,t:"e(3,4)"},
+ ev_4_1:{p:4,x:140,t:"e(4,1)"}, ev_4_2:{p:4,x:425,t:"e(4,2)"}, ev_4_3:{p:4,x:710,t:"e(4,3)"}, ev_4_4:{p:4,x:805,t:"e(4,4)"}, ev_4_5:{p:4,x:900,t:"e(4,5)"}
+};
+function Y(p){return PROC.find(o=>o.p===p).y;}
+const MSG={
+ msg_A:{d:"M330,110 L425,250",red:false,lx:360,ly:188,name:"P2\u2192P4"},
+ msg_B:{d:"M425,110 L520,180",red:false,lx:455,ly:138,name:"P2\u2192P3"},
+ msg_C:{d:"M425,180 L520,40",red:false,lx:432,ly:108,name:"P3\u2192P1"},
+ msg_D:{d:"M615,40 L805,250",red:false,lx:735,ly:128,name:"M1"},
+ msg_E:{d:"M140,180 C 380,235 560,255 710,250",red:false,lx:430,ly:252,name:"M2"},
+ msg_F:{d:"M900,250 L995,110",red:false,lx:930,ly:188,name:"P4\u2192P2"},
+ msg_G:{d:"M235,110 L330,40",red:true,lx:243,ly:64,name:"P2\u2192P1"},
+ msg_H:{d:"M140,250 L330,180",red:true,lx:185,ly:230,name:"P4\u2192P3"}
+};
+const ORIG_EVENTS=["ev_1_1","ev_1_3","ev_1_4","ev_2_3","ev_2_4","ev_2_5","ev_3_1","ev_3_3","ev_3_4","ev_4_2","ev_4_3","ev_4_4","ev_4_5"];
+const ORIG_MSGS=["msg_A","msg_B","msg_C","msg_D","msg_E","msg_F"];
+
+/* ===== Steps ===== */
+const T={recon:"\u0625\u0639\u0627\u062f\u0629 \u0628\u0646\u0627\u0621 \u0627\u0644\u0645\u062e\u0637\u0637 (\u0627\u0644\u0633\u0624\u0627\u0644 1)",compute:"\u062d\u0633\u0627\u0628 \u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0627\u062a (\u0627\u0644\u0633\u0624\u0627\u0644 2)",deliv:"\u0634\u0631\u0637 \u0627\u0644\u062a\u0633\u0644\u064a\u0645 (\u0627\u0644\u0633\u0624\u0627\u0644 3)",final:"\u0627\u0644\u062d\u0644 \u0627\u0644\u0646\u0647\u0627\u0626\u064a"};
+
+const STEPS=[
+ {id:"recon_overview",phase:"recon",mx:"given",adds:ORIG_MSGS.concat(ORIG_EVENTS),
+  title:"\u0646\u0638\u0631\u0629 \u0639\u0644\u0649 \u0627\u0644\u0645\u062e\u0637\u0637 \u0627\u0644\u0623\u0635\u0644\u064a",
+  what:"\u0647\u0630\u0627 \u0647\u0648 \u0627\u0644\u0645\u062e\u0637\u0637 \u0627\u0644\u0632\u0645\u0646\u064a \u0643\u0645\u0627 \u0648\u0631\u062f \u0641\u064a \u0627\u0644\u0627\u0645\u062a\u062d\u0627\u0646: \u0623\u0631\u0628\u0639\u0629 \u0645\u0633\u0627\u0631\u0627\u062a P1\u060c P2\u060c P3\u060c P4 \u0648\u0633\u062a\u0651 \u0631\u0633\u0627\u0626\u0644 \u0645\u0631\u0633\u0648\u0645\u0629.",
+  why:"\u0642\u0628\u0644 \u0623\u064a \u062d\u0633\u0627\u0628 \u0646\u062a\u0623\u0643\u0651\u062f \u0623\u0646 \u0627\u0644\u0645\u062e\u0637\u0637 \u0645\u0643\u062a\u0645\u0644. \u0644\u062f\u064a\u0646\u0627 \u062f\u0644\u064a\u0644 \u0648\u062d\u064a\u062f: \u0645\u0635\u0641\u0648\u0641\u0629 e1 \u0627\u0644\u0645\u0639\u0637\u0627\u0629. \u0633\u0646\u0642\u0627\u0631\u0646\u0647\u0627 \u0628\u0627\u0644\u0631\u0633\u0645 \u0644\u0646\u0643\u062a\u0634\u0641 \u0645\u0627 \u0647\u0648 \u0646\u0627\u0642\u0635.",
+  rule:"\u0644\u0627 \u062a\u0648\u062c\u062f \u0642\u0627\u0639\u062f\u0629 \u062d\u0633\u0627\u0628 \u0628\u0639\u062f \u2014 \u0647\u0630\u0647 \u0645\u0631\u062d\u0644\u0629 \u0642\u0631\u0627\u0621\u0629 \u0648\u062a\u062d\u0644\u064a\u0644."},
+
+ {id:"recon_p2row",phase:"recon",mx:"given",hlOver:[[2,1],[2,2]],adds:[],
+  title:"\u062a\u062d\u0644\u064a\u0644 \u0627\u0644\u0635\u0641 \u0627\u0644\u062e\u0627\u0635 \u0628\u0640 P2",
+  what:"\u0641\u064a \u0645\u0635\u0641\u0648\u0641\u0629 e1 \u0646\u062c\u062f \u0623\u0646 \u0627\u0644\u0635\u0641 P2 \u064a\u0633\u0627\u0648\u064a [1,2,0,0]\u060c \u0623\u064a M[P2][P1]=1 \u0648 M[P2][P2]=2.",
+  why:"\u0627\u0644\u062e\u0627\u0646\u0629 M[P2][P1]=1 \u062a\u0639\u0646\u064a \u0623\u0646 P2 \u0623\u0631\u0633\u0644 \u0631\u0633\u0627\u0644\u0629\u064b \u0648\u0627\u062d\u062f\u0629 \u0625\u0644\u0649 P1\u060c \u0648\u0623\u0646 P1 \u064a\u0639\u0644\u0645 \u0628\u0630\u0644\u0643. \u0644\u0643\u0646 \u0627\u0644\u0645\u062e\u0637\u0637 \u0644\u0627 \u064a\u0638\u0647\u0631 \u0623\u064a \u0631\u0633\u0627\u0644\u0629 \u0645\u0646 P2 \u0625\u0644\u0649 P1!",
+  rule:"\u0627\u0644\u062e\u0627\u0646\u0629 M[i][j] \u062a\u064f\u0632\u0627\u062f \u0641\u0642\u0637 \u0639\u0646\u062f \u0625\u0631\u0633\u0627\u0644 Pi \u0631\u0633\u0627\u0644\u0629\u064b \u0625\u0644\u0649 Pj. \u0648\u062c\u0648\u062f \u0642\u064a\u0645\u0629 \u0645\u0648\u062c\u0628\u0629 \u064a\u064f\u062b\u0628\u0650\u062a \u0648\u062c\u0648\u062f \u0631\u0633\u0627\u0644\u0629."},
+
+ {id:"recon_g",phase:"recon",mx:"given",hlOver:[[2,1],[2,2]],adds:["msg_G","ev_2_2","ev_1_2"],animate:"msg_G",
+  title:"\u0643\u0634\u0641 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0646\u0627\u0642\u0635\u0629 \u0627\u0644\u0623\u0648\u0644\u0649: P2 \u2192 P1",
+  what:"\u0646\u0636\u064a\u0641 \u0631\u0633\u0627\u0644\u0629 \u0625\u0631\u0633\u0627\u0644 \u0645\u0646 P2 \u0625\u0644\u0649 P1 (\u0628\u0627\u0644\u0644\u0648\u0646 \u0627\u0644\u0623\u062d\u0645\u0631). \u0647\u0630\u0627 \u064a\u062e\u0644\u0642 \u062d\u062f\u062b \u0625\u0631\u0633\u0627\u0644 e(2,2) \u0639\u0644\u0649 P2 \u0648\u062d\u062f\u062b \u0627\u0633\u062a\u0642\u0628\u0627\u0644 e(1,2) \u0639\u0644\u0649 P1.",
+  why:"\u0644\u0623\u0646\u0651 M[P2][P1]=1 \u0641\u064a \u0645\u0635\u0641\u0648\u0641\u0629 e1 \u0644\u0627 \u064a\u0645\u0643\u0646 \u0623\u0646 \u062a\u0638\u0647\u0631 \u0625\u0644\u0627 \u0628\u0648\u062c\u0648\u062f \u0647\u0630\u0647 \u0627\u0644\u0631\u0633\u0627\u0644\u0629. \u0648\u0628\u0645\u0627 \u0623\u0646 M[P2][P2]=2 \u0639\u0646\u062f \u0627\u0644\u0625\u0631\u0633\u0627\u0644\u060c \u0641\u0625\u0646\u0651 \u0647\u0630\u0627 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0647\u0648 \u0627\u0644\u062d\u062f\u062b \u0627\u0644\u062b\u0627\u0646\u064a \u0644\u0640 P2.",
+  rule:"\u0643\u0644 \u0631\u0633\u0627\u0644\u0629 \u062a\u0648\u0644\u0651\u062f \u062d\u062f\u062b\u064a\u0646: \u0625\u0631\u0633\u0627\u0644 \u0639\u0646\u062f \u0627\u0644\u0645\u0635\u062f\u0631 \u0648\u0627\u0633\u062a\u0642\u0628\u0627\u0644 \u0639\u0646\u062f \u0627\u0644\u0648\u062c\u0647\u0629."},
+
+ {id:"recon_local21",phase:"recon",mx:"given",adds:["ev_2_1"],
+  title:"\u0627\u0633\u062a\u0646\u062a\u0627\u062c \u062d\u062f\u062b \u0645\u062d\u0644\u064a \u0639\u0644\u0649 P2: e(2,1)",
+  what:"\u0646\u0636\u064a\u0641 \u062d\u062f\u062b\u064b\u0627 \u0645\u062d\u0644\u064a\u064b\u0627 e(2,1) \u0642\u0628\u0644 \u0625\u0631\u0633\u0627\u0644 P2 \u0625\u0644\u0649 P1.",
+  why:"\u0639\u0646\u062f \u0625\u0631\u0633\u0627\u0644 e(2,2) \u0643\u0627\u0646\u062a M[P2][P2]=2. \u0628\u0645\u0627 \u0623\u0646 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0647\u0648 \u0627\u0644\u062d\u062f\u062b \u0627\u0644\u062b\u0627\u0646\u064a\u060c \u0644\u0627 \u0628\u062f \u0623\u0646\u0651 P2 \u0623\u062f\u0651\u0649 \u062d\u062f\u062b\u064b\u0627 \u0623\u0648\u0644 \u062c\u0639\u0644 \u0627\u0644\u0639\u062f\u0651\u0627\u062f \u064a\u0635\u0644 \u0625\u0644\u0649 1. \u0644\u0627 \u062a\u0648\u062c\u062f \u0631\u0633\u0627\u0644\u0629 \u0648\u0627\u0631\u062f\u0629 \u0625\u0644\u0649 P2 \u0628\u0647\u0630\u0627 \u0627\u0644\u0648\u0642\u062a \u0627\u0644\u0645\u0628\u0643\u0651\u0631 \u0648\u0644\u0627 \u0625\u0631\u0633\u0627\u0644 \u0622\u062e\u0631\u060c \u0625\u0630\u0646 \u0627\u0644\u062d\u062f\u062b \u0627\u0644\u0623\u0648\u0644 \u0647\u0648 \u062d\u062f\u062b \u0645\u062d\u0644\u064a.",
+  rule:"\u0627\u0644\u062d\u062f\u062b \u0627\u0644\u0645\u062d\u0644\u064a \u064a\u0632\u064a\u062f M[i][i] \u0641\u0642\u0637 \u062f\u0648\u0646 \u0623\u064a \u062e\u0627\u0646\u0629 \u0623\u062e\u0631\u0649."},
+
+ {id:"recon_p4row",phase:"recon",mx:"given",hlOver:[[4,3],[4,4]],adds:[],
+  title:"\u062a\u062d\u0644\u064a\u0644 \u0627\u0644\u0635\u0641 \u0627\u0644\u062e\u0627\u0635 \u0628\u0640 P4",
+  what:"\u0627\u0644\u0635\u0641 P4 \u0641\u064a \u0645\u0635\u0641\u0648\u0641\u0629 e1 \u064a\u0633\u0627\u0648\u064a [0,0,1,1]\u060c \u0623\u064a M[P4][P3]=1 \u0648 M[P4][P4]=1.",
+  why:"\u0647\u0630\u0627 \u064a\u0639\u0646\u064a \u0623\u0646 P1 \u064a\u0639\u0631\u0641 \u0634\u064a\u0626\u064b\u0627 \u0639\u0646 P4! \u0644\u0643\u0646 \u0644\u0627 \u062a\u0648\u062c\u062f \u0631\u0633\u0627\u0644\u0629 \u0645\u0628\u0627\u0634\u0631\u0629 P4\u2192P1. \u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0629 \u0648\u0635\u0644\u062a \u0639\u0628\u0631 P3 (\u0628\u0648\u0627\u0633\u0637\u0629 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 P3\u2192P1). \u0648\u0644\u0643\u064a \u064a\u0639\u0631\u0641 P3 \u0639\u0646 P4 \u0644\u0627 \u0628\u062f \u0645\u0646 \u0631\u0633\u0627\u0644\u0629 P4\u2192P3.",
+  rule:"\u0627\u0644\u0645\u0639\u0631\u0641\u0629 \u0639\u0646 \u0645\u0633\u0627\u0631 \u0628\u0639\u064a\u062f \u062a\u0646\u062a\u0642\u0644 \u0628\u0627\u0644\u062a\u0639\u062f\u064a (transitivit\u00e9) \u0639\u0628\u0631 \u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0648\u0639\u0645\u0644\u064a\u0629 max."},
+
+ {id:"recon_h",phase:"recon",mx:"given",hlOver:[[4,3],[4,4]],adds:["msg_H","ev_4_1","ev_3_2"],animate:"msg_H",
+  title:"\u0643\u0634\u0641 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0646\u0627\u0642\u0635\u0629 \u0627\u0644\u062b\u0627\u0646\u064a\u0629: P4 \u2192 P3",
+  what:"\u0646\u0636\u064a\u0641 \u0631\u0633\u0627\u0644\u0629 \u0625\u0631\u0633\u0627\u0644 P4\u2192P3 (\u0628\u0627\u0644\u0623\u062d\u0645\u0631): \u062d\u062f\u062b \u0625\u0631\u0633\u0627\u0644 e(4,1) \u0639\u0644\u0649 P4 \u0648\u062d\u062f\u062b \u0627\u0633\u062a\u0642\u0628\u0627\u0644 e(3,2) \u0639\u0644\u0649 P3.",
+  why:"\u0644\u0623\u0646 M[P4][P4]=1 \u0639\u0646\u062f \u0627\u0644\u0625\u0631\u0633\u0627\u0644\u060c \u0641\u0625\u0646\u0651 e(4,1) \u0647\u0648 \u0627\u0644\u062d\u062f\u062b \u0627\u0644\u0623\u0648\u0644 \u0644\u0640 P4. \u0647\u0630\u0647 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0647\u064a \u0627\u0644\u062a\u064a \u0646\u0642\u0644\u062a \u0645\u0639\u0631\u0641\u0629 P4 \u0625\u0644\u0649 P3 \u062b\u0645 \u0625\u0644\u0649 P1.",
+  rule:"\u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u062a\u062d\u0645\u0644 \u0646\u0633\u062e\u0629\u064b \u0645\u0646 \u0645\u0635\u0641\u0648\u0641\u0629 \u0627\u0644\u0645\u064f\u0631\u0633\u0650\u0644 \u062a\u0646\u062a\u0634\u0631 \u0628\u0639\u062f\u0647\u0627 \u0639\u0628\u0631 \u0627\u0644\u0634\u0628\u0643\u0629."},
+
+ {id:"recon_complete",phase:"recon",mx:"given",adds:[],
+  title:"\u0627\u0643\u062a\u0645\u0644 \u0627\u0644\u0645\u062e\u0637\u0637",
+  what:"\u0627\u0644\u0622\u0646 \u0627\u0644\u0645\u062e\u0637\u0637 \u0645\u0643\u062a\u0645\u0644: \u062b\u0645\u0627\u0646\u064a \u0631\u0633\u0627\u0626\u0644 \u0648\u062c\u0645\u064a\u0639 \u0627\u0644\u0623\u062d\u062f\u0627\u062b \u0638\u0627\u0647\u0631\u0629.",
+  why:"\u0628\u0639\u062f \u0625\u0636\u0627\u0641\u0629 \u0627\u0644\u0631\u0633\u0627\u0644\u062a\u064a\u0646 P2\u2192P1 \u0648 P4\u2192P3 \u0648\u0627\u0644\u062d\u062f\u062b \u0627\u0644\u0645\u062d\u0644\u064a\u060c \u0623\u0635\u0628\u062d \u0627\u0644\u0645\u062e\u0637\u0637 \u0645\u062a\u0648\u0627\u0641\u0642\u064b\u0627 \u0645\u0639 \u0645\u0635\u0641\u0648\u0641\u0629 e1. \u0646\u0628\u062f\u0623 \u0627\u0644\u0622\u0646 \u0627\u0644\u062d\u0633\u0627\u0628 \u0645\u0646 \u0627\u0644\u0635\u0641\u0631.",
+  rule:"\u0633\u0646\u0639\u0627\u0644\u062c \u0627\u0644\u0623\u062d\u062f\u0627\u062b \u062d\u0633\u0628 \u062a\u0631\u062a\u064a\u0628\u0647\u0627 \u0627\u0644\u0633\u0628\u0628\u064a (ordre causal): \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u062f\u0627\u0626\u0645\u064b\u0627 \u0642\u0628\u0644 \u0627\u0644\u0627\u0633\u062a\u0642\u0628\u0627\u0644."},
+
+ /* ===== compute ===== */
+ {id:"c_1_1",phase:"compute",mx:"gen",current:"ev_1_1",
+  title:"\u062d\u062f\u062b \u0645\u062d\u0644\u064a \u0639\u0644\u0649 P1",
+  what:"\u0623\u0648\u0644 \u062d\u062f\u062b \u0639\u0644\u0649 P1 \u0647\u0648 \u062d\u062f\u062b \u0645\u062d\u0644\u064a.",
+  why:"\u0646\u0628\u062f\u0623 \u0628\u062a\u0635\u0641\u064a\u0631 \u0643\u0644 \u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0627\u062a\u060c \u062b\u0645 \u0646\u0639\u0627\u0644\u062c \u0623\u0648\u0644 \u062d\u062f\u062b.",
+  rule:"\u062d\u062f\u062b \u0645\u062d\u0644\u064a: M[P1][P1] += 1.",
+  change:"\u0627\u0644\u062e\u0627\u0646\u0629 M[P1][P1] \u0627\u0646\u062a\u0642\u0644\u062a \u0645\u0646 0 \u0625\u0644\u0649 1.",
+  whynot:"\u0628\u0627\u0642\u064a \u0627\u0644\u062e\u0627\u0646\u0627\u062a \u062a\u0628\u0642\u0649 \u0635\u0641\u0631\u064b\u0627 \u0644\u0623\u0646\u0651 \u0627\u0644\u062d\u062f\u062b \u0627\u0644\u0645\u062d\u0644\u064a \u0644\u0627 \u064a\u0631\u0633\u0644 \u0648\u0644\u0627 \u064a\u0633\u062a\u0642\u0628\u0644 \u0623\u064a \u0634\u064a\u0621."},
+
+ {id:"c_2_1",phase:"compute",mx:"gen",current:"ev_2_1",
+  title:"\u062d\u062f\u062b \u0645\u062d\u0644\u064a \u0639\u0644\u0649 P2",
+  what:"\u0623\u0648\u0644 \u062d\u062f\u062b \u0639\u0644\u0649 P2 \u0647\u0648 \u0627\u0644\u062d\u062f\u062b \u0627\u0644\u0645\u062d\u0644\u064a e(2,1).",
+  why:"\u0647\u0648 \u0627\u0644\u062d\u062f\u062b \u0627\u0644\u0630\u064a \u0627\u0633\u062a\u0646\u062a\u062c\u0646\u0627\u0647 \u0633\u0627\u0628\u0642\u064b\u0627.",
+  rule:"\u062d\u062f\u062b \u0645\u062d\u0644\u064a: M[P2][P2] += 1.",
+  change:"M[P2][P2]: 0 \u2192 1.",
+  whynot:"\u0644\u0627 \u062a\u062a\u063a\u064a\u0631 \u0628\u0627\u0642\u064a \u0627\u0644\u062e\u0627\u0646\u0627\u062a\u061b \u0643\u0644 \u0645\u0633\u0627\u0631 \u064a\u0639\u0645\u0644 \u0639\u0644\u0649 \u0645\u0635\u0641\u0648\u0641\u062a\u0647 \u0627\u0644\u062e\u0627\u0635\u0629 \u0628\u0634\u0643\u0644 \u0645\u0633\u062a\u0642\u0644."},
+
+ {id:"c_3_1",phase:"compute",mx:"gen",current:"ev_3_1",animate:"msg_E",
+  title:"\u0625\u0631\u0633\u0627\u0644 M2 \u0645\u0646 P3 \u0625\u0644\u0649 P4",
+  what:"P3 \u064a\u0631\u0633\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 M2 \u0625\u0644\u0649 P4 (\u0623\u0648\u0644 \u062d\u062f\u062b \u0644\u0640 P3).",
+  why:"\u0625\u0631\u0633\u0627\u0644 M2 \u064a\u0633\u0628\u0642 \u0633\u0628\u0628\u064a\u064b\u0627 \u0628\u0627\u0642\u064a \u0623\u062d\u062f\u0627\u062b P3.",
+  rule:"\u0625\u0631\u0633\u0627\u0644: M[P3][P3] += 1 \u062b\u0645 M[P3][P4] += 1.",
+  change:"M[P3][P3]: 0\u21921 \u0648 M[P3][P4]: 0\u21921.",
+  whynot:"\u0628\u0627\u0642\u064a \u0627\u0644\u062e\u0627\u0646\u0627\u062a \u0635\u0641\u0631\u060c \u0644\u0623\u0646\u0651 P3 \u0644\u0645 \u064a\u0633\u062a\u0642\u0628\u0644 \u0628\u0639\u062f \u0623\u064a \u0645\u0639\u0644\u0648\u0645\u0629 \u0639\u0646 \u0627\u0644\u0622\u062e\u0631\u064a\u0646.",
+  carry:"\u062a\u062d\u0645\u0644 M2 \u0646\u0633\u062e\u0629 \u0645\u0646 \u0645\u0635\u0641\u0648\u0641\u0629 P3 \u0628\u0639\u062f \u0627\u0644\u062a\u062d\u062f\u064a\u062b: \u0627\u0644\u0635\u0641 P3 = [0,0,1,1]."},
+
+ {id:"c_4_1",phase:"compute",mx:"gen",current:"ev_4_1",animate:"msg_H",
+  title:"\u0625\u0631\u0633\u0627\u0644 P4 \u2192 P3",
+  what:"P4 \u064a\u0631\u0633\u0644 \u0631\u0633\u0627\u0644\u0629\u064b \u0625\u0644\u0649 P3 (\u0623\u0648\u0644 \u062d\u062f\u062b \u0644\u0640 P4).",
+  why:"\u0647\u0630\u0647 \u0647\u064a \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u062a\u064a \u0623\u0639\u062f\u0646\u0627 \u0628\u0646\u0627\u0621\u0647\u0627.",
+  rule:"\u0625\u0631\u0633\u0627\u0644: M[P4][P4] += 1 \u062b\u0645 M[P4][P3] += 1.",
+  change:"M[P4][P4]: 0\u21921 \u0648 M[P4][P3]: 0\u21921.",
+  whynot:"\u0628\u0627\u0642\u064a \u0627\u0644\u062e\u0627\u0646\u0627\u062a \u0635\u0641\u0631\u060c \u0644\u0623\u0646\u0651 P4 \u0644\u0645 \u064a\u0633\u062a\u0642\u0628\u0644 \u0628\u0639\u062f \u0623\u064a \u0631\u0633\u0627\u0644\u0629.",
+  carry:"\u062a\u062d\u0645\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0635\u0641 P4 = [0,0,1,1]."},
+
+ {id:"c_2_2",phase:"compute",mx:"gen",current:"ev_2_2",animate:"msg_G",
+  title:"\u0625\u0631\u0633\u0627\u0644 P2 \u2192 P1",
+  what:"P2 \u064a\u0631\u0633\u0644 \u0625\u0644\u0649 P1 (\u0627\u0644\u062d\u062f\u062b \u0627\u0644\u062b\u0627\u0646\u064a \u0644\u0640 P2).",
+  why:"\u0647\u0630\u0627 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0647\u0648 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0646\u0627\u0642\u0635\u0629 \u0627\u0644\u0623\u0648\u0644\u0649.",
+  rule:"\u0625\u0631\u0633\u0627\u0644: M[P2][P2] += 1 \u062b\u0645 M[P2][P1] += 1.",
+  change:"M[P2][P2]: 1\u21922 \u0648 M[P2][P1]: 0\u21921.",
+  whynot:"\u0628\u0627\u0642\u064a \u0627\u0644\u062e\u0627\u0646\u0627\u062a \u062a\u0628\u0642\u0649 \u0635\u0641\u0631\u064b\u0627 \u0644\u0623\u0646\u0651 P2 \u0644\u0645 \u064a\u0631\u0633\u0644 \u0625\u0644\u0649 \u063a\u064a\u0631 P1 \u0648\u0644\u0645 \u064a\u0633\u062a\u0642\u0628\u0644 \u0628\u0639\u062f.",
+  carry:"\u062a\u062d\u0645\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0635\u0641 P2 = [1,2,0,0]."},
+
+ {id:"c_1_2",phase:"compute",mx:"gen",current:"ev_1_2",animate:"msg_G",
+  title:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644 P1 \u0644\u0631\u0633\u0627\u0644\u0629 P2",
+  what:"P1 \u064a\u0633\u062a\u0642\u0628\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0642\u0627\u062f\u0645\u0629 \u0645\u0646 P2.",
+  why:"\u0628\u0639\u062f \u0625\u0631\u0633\u0627\u0644 P2 \u064a\u062c\u0628 \u0623\u0646 \u064a\u0633\u062a\u0642\u0628\u0644 P1.",
+  rule:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644: M[P1][P1] += 1 \u062b\u0645 max \u062e\u0627\u0646\u0629\u064b \u0628\u062e\u0627\u0646\u0629 \u0645\u0639 \u0645\u0635\u0641\u0648\u0641\u0629 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 W.",
+  change:"M[P1][P1]: 1\u21922 (\u0627\u0644\u0627\u0633\u062a\u0642\u0628\u0627\u0644 \u062d\u062f\u062b)\u060c \u062b\u0645 \u0627\u0644\u0635\u0641 P2 \u0623\u062e\u0630 \u0627\u0644\u0642\u064a\u0645 [1,2,0,0] \u0645\u0646 W.",
+  whynot:"\u0635\u0641\u0651\u0627 P3 \u0648 P4 \u064a\u0628\u0642\u064a\u0627\u0646 \u0635\u0641\u0631\u064b\u0627 \u0644\u0623\u0646\u0651 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0642\u0627\u062f\u0645\u0629 \u0645\u0646 P2 \u0644\u0627 \u062a\u062d\u0645\u0644 \u0623\u064a \u0645\u0639\u0631\u0641\u0629 \u0639\u0646\u0647\u0645\u0627.",
+  recvwhy:"\u0646\u0623\u062e\u0630 max \u0644\u0623\u0646\u0651 P1 \u064a\u062f\u0645\u062c \u0645\u0639\u0631\u0641\u062a\u0647 \u0627\u0644\u0633\u0627\u0628\u0642\u0629 \u0645\u0639 \u0645\u0627 \u062a\u062d\u0645\u0644\u0647 \u0627\u0644\u0631\u0633\u0627\u0644\u0629\u060c \u0641\u064a\u0623\u062e\u0630 \u0627\u0644\u0623\u062d\u062f\u062b (\u0627\u0644\u0623\u0643\u0628\u0631) \u0641\u064a \u0643\u0644 \u062e\u0627\u0646\u0629."},
+
+ {id:"c_2_3",phase:"compute",mx:"gen",current:"ev_2_3",animate:"msg_A",
+  title:"\u0625\u0631\u0633\u0627\u0644 P2 \u2192 P4",
+  what:"P2 \u064a\u0631\u0633\u0644 \u0631\u0633\u0627\u0644\u0629\u064b \u0625\u0644\u0649 P4.",
+  why:"\u0646\u0648\u0627\u0635\u0644 \u0623\u062d\u062f\u0627\u062b P2 \u062d\u0633\u0628 \u0627\u0644\u062a\u0631\u062a\u064a\u0628.",
+  rule:"\u0625\u0631\u0633\u0627\u0644: M[P2][P2] += 1 \u062b\u0645 M[P2][P4] += 1.",
+  change:"M[P2][P2]: 2\u21923 \u0648 M[P2][P4]: 0\u21921.",
+  whynot:"\u0628\u0627\u0642\u064a \u0627\u0644\u0635\u0641 P2 \u062b\u0627\u0628\u062a\u060c \u0648\u0635\u0641\u0648\u0641 P1\u060c P3\u060c P4 \u0644\u0627 \u062a\u062a\u063a\u064a\u0631 \u0639\u0646\u062f \u0627\u0644\u0625\u0631\u0633\u0627\u0644.",
+  carry:"\u062a\u062d\u0645\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0635\u0641 P2 = [1,3,0,1]."},
+
+ {id:"c_3_2",phase:"compute",mx:"gen",current:"ev_3_2",animate:"msg_H",
+  title:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644 P3 \u0644\u0631\u0633\u0627\u0644\u0629 P4",
+  what:"P3 \u064a\u0633\u062a\u0642\u0628\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0642\u0627\u062f\u0645\u0629 \u0645\u0646 P4.",
+  why:"\u062d\u062f\u062b e(3,2) \u0647\u0648 \u0627\u0633\u062a\u0642\u0628\u0627\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 P4\u2192P3.",
+  rule:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644: M[P3][P3] += 1 \u062b\u0645 max \u0645\u0639 W.",
+  change:"M[P3][P3]: 1\u21922\u060c \u062b\u0645 \u0627\u0644\u0635\u0641 P4 \u0623\u062e\u0630 [0,0,1,1] \u0645\u0646 W.",
+  whynot:"\u0635\u0641\u0651\u0627 P1 \u0648 P2 \u064a\u0628\u0642\u064a\u0627\u0646 \u0635\u0641\u0631\u064b\u0627 \u0644\u0623\u0646\u0651 \u0631\u0633\u0627\u0644\u0629 P4 \u0644\u0627 \u062a\u0639\u0631\u0641 \u0639\u0646\u0647\u0645\u0627 \u0634\u064a\u0626\u064b\u0627.",
+  recvwhy:"\u0628\u0639\u062f max \u0623\u0635\u0628\u062d P3 \u064a\u0639\u0631\u0641 \u0623\u0646 P4 \u0623\u0631\u0633\u0644 \u0625\u0644\u064a\u0647 \u0648\u0623\u0646\u0651 \u0644\u062f\u0649 P4 \u062d\u062f\u062b\u064b\u0627 \u0648\u0627\u062d\u062f\u064b\u0627."},
+
+ {id:"c_2_4",phase:"compute",mx:"gen",current:"ev_2_4",animate:"msg_B",
+  title:"\u0625\u0631\u0633\u0627\u0644 P2 \u2192 P3",
+  what:"P2 \u064a\u0631\u0633\u0644 \u0631\u0633\u0627\u0644\u0629\u064b \u0625\u0644\u0649 P3.",
+  why:"\u0631\u0627\u0628\u0639 \u062d\u062f\u062b \u0639\u0644\u0649 P2.",
+  rule:"\u0625\u0631\u0633\u0627\u0644: M[P2][P2] += 1 \u062b\u0645 M[P2][P3] += 1.",
+  change:"M[P2][P2]: 3\u21924 \u0648 M[P2][P3]: 0\u21921.",
+  whynot:"\u0644\u0627 \u062a\u062a\u063a\u064a\u0631 \u0628\u0627\u0642\u064a \u0627\u0644\u062e\u0627\u0646\u0627\u062a \u2014 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u064a\u0645\u0633\u0651 \u0641\u0642\u0637 \u0627\u0644\u0642\u0637\u0631 \u0648\u062e\u0627\u0646\u0629 \u0627\u0644\u0648\u062c\u0647\u0629.",
+  carry:"\u062a\u062d\u0645\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0635\u0641 P2 = [1,4,1,1]."},
+
+ {id:"c_3_3",phase:"compute",mx:"gen",current:"ev_3_3",animate:"msg_C",
+  title:"\u0625\u0631\u0633\u0627\u0644 P3 \u2192 P1",
+  what:"P3 \u064a\u0631\u0633\u0644 \u0625\u0644\u0649 P1 (\u0647\u0630\u0647 \u0647\u064a \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u062a\u064a \u062a\u0646\u0642\u0644 \u0645\u0639\u0631\u0641\u0629 P4 \u0625\u0644\u0649 P1).",
+  why:"\u062b\u0627\u0644\u062b \u062d\u062f\u062b \u0639\u0644\u0649 P3 \u0628\u0639\u062f \u0627\u0633\u062a\u0642\u0628\u0627\u0644\u0647 \u0645\u0646 P4.",
+  rule:"\u0625\u0631\u0633\u0627\u0644: M[P3][P3] += 1 \u062b\u0645 M[P3][P1] += 1.",
+  change:"M[P3][P3]: 2\u21923 \u0648 M[P3][P1]: 0\u21921.",
+  whynot:"\u0627\u0644\u0635\u0641 P4 \u062f\u0627\u062e\u0644 \u0645\u0635\u0641\u0648\u0641\u0629 P3 \u064a\u0628\u0642\u0649 [0,0,1,1] \u062f\u0648\u0646 \u062a\u063a\u064a\u064a\u0631 \u0644\u0623\u0646\u0651 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0644\u0627 \u064a\u0645\u0633\u0651 \u0625\u0644\u0627 \u0635\u0641\u0651 P3.",
+  carry:"\u062a\u062d\u0645\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0643\u0627\u0645\u0644 \u0645\u0635\u0641\u0648\u0641\u0629 P3\u060c \u0648\u0641\u064a\u0647\u0627 \u0627\u0644\u0635\u0641 P3 = [1,0,3,1] \u0648\u0627\u0644\u0635\u0641 P4 = [0,0,1,1]."},
+
+ {id:"c_4_2",phase:"compute",mx:"gen",current:"ev_4_2",animate:"msg_A",
+  title:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644 P4 \u0644\u0631\u0633\u0627\u0644\u0629 P2",
+  what:"P4 \u064a\u0633\u062a\u0642\u0628\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0642\u0627\u062f\u0645\u0629 \u0645\u0646 P2.",
+  why:"\u062b\u0627\u0646\u064a \u062d\u062f\u062b \u0639\u0644\u0649 P4.",
+  rule:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644: M[P4][P4] += 1 \u062b\u0645 max \u0645\u0639 W.",
+  change:"M[P4][P4]: 1\u21922\u060c \u062b\u0645 \u0627\u0644\u0635\u0641 P2 \u0623\u062e\u0630 [1,3,0,1] \u0645\u0646 W.",
+  whynot:"\u0635\u0641\u0651\u0627 P1 \u0648 P3 \u064a\u0628\u0642\u064a\u0627\u0646 \u0639\u0644\u0649 \u062d\u0627\u0644\u0647\u0645\u0627 \u0644\u0623\u0646\u0651 \u0631\u0633\u0627\u0644\u0629 P2 \u0644\u0627 \u062a\u062d\u0645\u0644 \u0645\u0639\u0631\u0641\u0629 \u0623\u062d\u062f\u062b \u0639\u0646\u0647\u0645\u0627.",
+  recvwhy:"\u0628\u0640 max \u064a\u062f\u0645\u062c P4 \u0645\u0639\u0631\u0641\u0629 P2 \u0627\u0644\u0648\u0627\u0631\u062f\u0629 \u062f\u0648\u0646 \u0623\u0646 \u064a\u0641\u0642\u062f \u0645\u0639\u0631\u0641\u062a\u0647 \u0627\u0644\u0633\u0627\u0628\u0642\u0629 \u0639\u0646 \u0646\u0641\u0633\u0647 \u0648 P3."},
+
+ {id:"c_1_3",phase:"compute",mx:"gen",current:"ev_1_3",animate:"msg_C",
+  title:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644 P1 \u0644\u0631\u0633\u0627\u0644\u0629 P3",
+  what:"P1 \u064a\u0633\u062a\u0642\u0628\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 P3\u2192P1.",
+  why:"\u062b\u0627\u0644\u062b \u062d\u062f\u062b \u0639\u0644\u0649 P1\u061b \u0628\u0647 \u064a\u062a\u0639\u0631\u0651\u0641 P1 \u0639\u0644\u0649 P3 \u0648 P4 \u062f\u0641\u0639\u0629\u064b \u0648\u0627\u062d\u062f\u0629.",
+  rule:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644: M[P1][P1] += 1 \u062b\u0645 max \u0645\u0639 W.",
+  change:"M[P1][P1]: 2\u21923\u060c \u0627\u0644\u0635\u0641 P3 \u0623\u062e\u0630 [1,0,3,1] \u0648\u0627\u0644\u0635\u0641 P4 \u0623\u062e\u0630 [0,0,1,1].",
+  whynot:"\u0627\u0644\u0635\u0641 P2 \u062f\u0627\u062e\u0644 P1 \u064a\u0628\u0642\u0649 [1,2,0,0] \u0644\u0623\u0646\u0651 \u0642\u064a\u0645 W \u0639\u0646 P2 \u0644\u064a\u0633\u062a \u0623\u062d\u062f\u062b.",
+  carry:"\u062d\u0645\u0644\u062a \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0645\u0639\u0631\u0641\u0629 P3 \u0639\u0646 P4\u060c \u0648\u0647\u0643\u0630\u0627 \u0648\u0635\u0644\u062a \u0645\u0639\u0644\u0648\u0645\u0629 P4 \u0625\u0644\u0649 P1 \u0628\u0627\u0644\u062a\u0639\u062f\u064a.",
+  recvwhy:"\u0639\u0645\u0644\u064a\u0629 max \u062a\u0636\u0645\u0646 \u0623\u0646\u0651 P1 \u064a\u062d\u062a\u0641\u0638 \u0628\u0623\u062d\u062f\u062b \u0645\u0639\u0631\u0641\u0629 \u0639\u0646 \u0643\u0644 \u0645\u0633\u0627\u0631."},
+
+ {id:"c_3_4",phase:"compute",mx:"gen",current:"ev_3_4",animate:"msg_B",
+  title:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644 P3 \u0644\u0631\u0633\u0627\u0644\u0629 P2",
+  what:"P3 \u064a\u0633\u062a\u0642\u0628\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 P2\u2192P3.",
+  why:"\u0631\u0627\u0628\u0639 \u062d\u062f\u062b \u0639\u0644\u0649 P3.",
+  rule:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644: M[P3][P3] += 1 \u062b\u0645 max \u0645\u0639 W.",
+  change:"M[P3][P3]: 3\u21924\u060c \u0648\u0627\u0644\u0635\u0641 P2 \u0623\u062e\u0630 [1,4,1,1] \u0645\u0646 W.",
+  whynot:"\u0627\u0644\u0635\u0641 P4 \u062f\u0627\u062e\u0644 P3 \u064a\u0628\u0642\u0649 [0,0,1,1] \u0644\u0623\u0646\u0651 \u0631\u0633\u0627\u0644\u0629 P2 \u0644\u0627 \u062a\u062d\u0645\u0644 \u0645\u0639\u0631\u0641\u0629 \u0623\u062d\u062f\u062b \u0639\u0646 P4.",
+  recvwhy:"\u064a\u062f\u0645\u062c P3 \u0645\u0639\u0631\u0641\u0629 P2 \u0627\u0644\u0648\u0627\u0631\u062f\u0629 \u0639\u0628\u0631 max."},
+
+ {id:"c_1_4",phase:"compute",mx:"gen",current:"ev_1_4",animate:"msg_D",validate:true,
+  title:"\u0625\u0631\u0633\u0627\u0644 M1 \u0645\u0646 P1 \u0625\u0644\u0649 P4 \u2014 \u0648\u0647\u0648 e1",
+  what:"P1 \u064a\u0631\u0633\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 M1 \u0625\u0644\u0649 P4. \u0647\u0630\u0627 \u0647\u0648 \u0627\u0644\u062d\u062f\u062b e1 \u0627\u0644\u0645\u0639\u0637\u0649 \u0641\u064a \u0627\u0644\u0627\u0645\u062a\u062d\u0627\u0646.",
+  why:"\u0631\u0627\u0628\u0639 \u062d\u062f\u062b \u0639\u0644\u0649 P1\u060c \u0648\u0647\u0648 \u0646\u0642\u0637\u0629 \u0627\u0644\u062a\u062d\u0642\u0651\u0642: \u064a\u062c\u0628 \u0623\u0646 \u062a\u0637\u0627\u0628\u0642 \u0645\u0635\u0641\u0648\u0641\u062a\u064f\u0646\u0627 \u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0629 \u0627\u0644\u0645\u0639\u0637\u0627\u0629.",
+  rule:"\u0625\u0631\u0633\u0627\u0644: M[P1][P1] += 1 \u062b\u0645 M[P1][P4] += 1.",
+  change:"M[P1][P1]: 3\u21924 \u0648 M[P1][P4]: 0\u21921.",
+  whynot:"\u0628\u0627\u0642\u064a \u0627\u0644\u0635\u0641\u0648\u0641 \u062b\u0627\u0628\u062a\u0629 \u0644\u0623\u0646\u0651 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0644\u0627 \u064a\u0636\u064a\u0641 \u0645\u0639\u0631\u0641\u0629 \u062c\u062f\u064a\u062f\u0629.",
+  carry:"\u062a\u062d\u0645\u0644 M1 \u0643\u0627\u0645\u0644 \u0645\u0635\u0641\u0648\u0641\u0629 P1 \u0639\u0646\u062f e1\u060c \u0648\u0641\u064a\u0647\u0627 \u0627\u0644\u0635\u0641 P3 = [1,0,3,1] \u0648\u0627\u0644\u0635\u0641 P4 = [0,0,1,1]."},
+
+ /* ===== delivery (Q3) ===== */
+ {id:"deliv",phase:"deliv",mx:"p4",hlOver:[[3,4]],blocked:"msg_D",
+  title:"\u0627\u0644\u062a\u062d\u0642\u0651\u0642 \u0645\u0646 \u0634\u0631\u0637 \u0627\u0644\u062a\u0633\u0644\u064a\u0645 \u0639\u0646\u062f P4",
+  what:"\u0648\u0635\u0644 \u0625\u0644\u0649 P4 \u0631\u0633\u0627\u0644\u062a\u0627\u0646: M1 (\u0645\u0646 P1) \u0648 M2 (\u0645\u0646 P3). \u0641\u064a \u0627\u0644\u0645\u062e\u0637\u0637 \u0627\u0644\u0623\u0635\u0644\u064a \u062a\u0635\u0644 M1 \u0623\u0648\u0644\u064b\u0627. \u0644\u0646\u062e\u062a\u0628\u0631 \u0647\u0644 \u064a\u0645\u0643\u0646 \u062a\u0633\u0644\u064a\u0645 M1 \u0627\u0644\u0622\u0646.",
+  why:"\u0645\u0635\u0641\u0648\u0641\u0629 P4 \u0627\u0644\u062d\u0627\u0644\u064a\u0629 \u0635\u0641\u0651 P3 \u0641\u064a\u0647\u0627 M[P3][P4]=0\u060c \u0623\u064a P4 \u0644\u0645 \u064a\u0633\u062a\u0642\u0628\u0644 \u0628\u0639\u062f \u0631\u0633\u0627\u0644\u0629 P3 (\u0648\u0647\u064a M2).",
+  rule:"\u0634\u0631\u0637 \u0627\u0644\u062a\u0633\u0644\u064a\u0645: \u0644\u0627 \u062a\u064f\u0633\u0644\u0651\u0645 \u0631\u0633\u0627\u0644\u0629 \u0645\u0646 Pj \u0625\u0644\u0649 Pi \u0625\u0644\u0627 \u0625\u0630\u0627 \u0643\u0627\u0646 W[j][i]=M[j][i]+1 \u0648 W[k][i]\u2264M[k][i] \u0644\u0643\u0644 k\u2260j.",
+  change:"\u0644\u0627 \u062a\u062a\u063a\u064a\u0631 \u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0629 \u2014 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 M1 \u0645\u0631\u0641\u0648\u0636\u0629 (\u062a\u0628\u0642\u0649 \u0641\u064a \u0627\u0644\u0630\u0627\u0643\u0631\u0629 buffer).",
+  whynot:"\u0627\u0644\u0631\u0633\u0627\u0644\u0629 M1 \u062a\u062d\u0645\u0644 W[P3][P4]=1 \u0628\u064a\u0646\u0645\u0627 \u0644\u062f\u0649 P4 \u0627\u0644\u0642\u064a\u0645\u0629 M[P3][P4]=0. \u0625\u0630\u0646 W[P3][P4]\u2264M[P3][P4] \u063a\u064a\u0631 \u0645\u062d\u0642\u0651\u0642 \u2190 \u0627\u0646\u062a\u0647\u0627\u0643! \u064a\u0639\u0646\u064a \u0623\u0646\u0651 M1 \u062a\u0639\u062a\u0645\u062f \u0633\u0628\u0628\u064a\u064b\u0627 \u0639\u0644\u0649 M2 \u0627\u0644\u062a\u064a \u0644\u0645 \u062a\u0635\u0644 \u0628\u0639\u062f."},
+
+ {id:"c_4_3",phase:"deliv",mx:"gen",current:"ev_4_3",animate:"msg_E",
+  title:"\u0627\u0644\u062a\u0635\u062d\u064a\u062d: \u062a\u0633\u0644\u064a\u0645 M2 \u0623\u0648\u0644\u064b\u0627 \u0639\u0644\u0649 P4",
+  what:"\u0646\u0635\u062d\u0651\u062d \u0627\u0644\u0645\u062e\u0637\u0637: \u064a\u062c\u0628 \u0623\u0646 \u062a\u064f\u0633\u0644\u0651\u0645 M2 (\u0645\u0646 P3) \u0642\u0628\u0644 M1. \u0641\u064a \u0647\u0630\u0647 \u0627\u0644\u062d\u0627\u0644\u0629 W[P3][P4]=1 = M[P3][P4]+1 \u0648\u0628\u0627\u0642\u064a \u0627\u0644\u0634\u0631\u0648\u0637 \u0645\u062d\u0642\u0651\u0642\u0629 \u2190 \u062a\u0633\u0644\u064a\u0645 \u0645\u0642\u0628\u0648\u0644.",
+  why:"\u0628\u0645\u0627 \u0623\u0646\u0651 \u0625\u0631\u0633\u0627\u0644 M2 \u064a\u0633\u0628\u0642 \u0633\u0628\u0628\u064a\u064b\u0627 \u0625\u0631\u0633\u0627\u0644 M1\u060c \u0641\u0627\u0644\u062a\u0633\u0644\u064a\u0645 \u0627\u0644\u0633\u0628\u0628\u064a \u064a\u0641\u0631\u0636 \u0627\u0633\u062a\u0642\u0628\u0627\u0644 M2 \u0623\u0648\u0644\u064b\u0627.",
+  rule:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644: M[P4][P4] += 1 \u062b\u0645 max \u0645\u0639 W.",
+  change:"M[P4][P4]: 2\u21923\u060c \u0648\u0627\u0644\u0635\u0641 P3 \u0623\u062e\u0630 [0,0,1,1] \u0645\u0646 W (M2).",
+  whynot:"\u0635\u0641\u0651\u0627 P1 \u0648 P2 \u064a\u0628\u0642\u064a\u0627\u0646 \u0639\u0644\u0649 \u062d\u0627\u0644\u0647\u0645\u0627\u060c \u0641\u0640 M2 \u0623\u064f\u0631\u0633\u0644\u062a \u0645\u0628\u0643\u0651\u0631\u064b\u0627 \u0648\u0644\u0627 \u062a\u062d\u0645\u0644 \u0645\u0639\u0631\u0641\u0629 \u0639\u0646\u0647\u0645\u0627.",
+  recvwhy:"\u0628\u0639\u062f \u0627\u0644\u062a\u0633\u0644\u064a\u0645\u060c \u0623\u0635\u0628\u062d M[P3][P4]=1\u060c \u0648\u0647\u0630\u0627 \u0645\u0627 \u064a\u0633\u0645\u062d \u0644\u0640 M1 \u0628\u0627\u0644\u062a\u0633\u0644\u064a\u0645 \u0644\u0627\u062d\u0642\u064b\u0627."},
+
+ {id:"c_4_4",phase:"deliv",mx:"gen",current:"ev_4_4",animate:"msg_D",
+  title:"\u062a\u0633\u0644\u064a\u0645 M1 \u0628\u0639\u062f M2 \u0639\u0644\u0649 P4",
+  what:"\u0627\u0644\u0622\u0646 \u064a\u0633\u062a\u0642\u0628\u0644 P4 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 M1 \u0627\u0644\u0642\u0627\u062f\u0645\u0629 \u0645\u0646 P1.",
+  why:"\u0628\u0639\u062f \u0648\u0635\u0648\u0644 M2 \u0623\u0635\u0628\u062d \u0634\u0631\u0637 \u0627\u0644\u062a\u0633\u0644\u064a\u0645 \u0645\u062d\u0642\u0651\u0642\u064b\u0627 \u0644\u0640 M1.",
+  rule:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644: M[P4][P4] += 1 \u062b\u0645 max \u0645\u0639 W.",
+  change:"M[P4][P4]: 3\u21924\u060c \u0627\u0644\u0635\u0641 P1 \u0623\u062e\u0630 [4,0,0,1]\u060c \u0648\u062a\u062d\u062f\u0651\u062b\u062a \u062e\u0627\u0646\u0627\u062a \u0627\u0644\u0635\u0641 P3 \u0625\u0644\u0649 [1,0,3,1].",
+  whynot:"\u0627\u0644\u062e\u0627\u0646\u0627\u062a \u0627\u0644\u062a\u064a \u0643\u0627\u0646\u062a \u0623\u0635\u0644\u064b\u0627 \u0623\u0643\u0628\u0631 \u0623\u0648 \u0645\u0633\u0627\u0648\u064a\u0629 \u0644\u0645 \u062a\u062a\u063a\u064a\u0651\u0631\u060c \u0644\u0623\u0646\u0651 max \u064a\u0623\u062e\u0630 \u0627\u0644\u0623\u0643\u0628\u0631 \u0641\u0642\u0637.",
+  carry:"\u062d\u0645\u0644\u062a M1 \u0645\u0635\u0641\u0648\u0641\u0629 P1 \u0639\u0646\u062f e1 = [[4,0,0,1],[1,2,0,0],[1,0,3,1],[0,0,1,1]].",
+  recvwhy:"\u0628\u0640 max \u062c\u0645\u0639 P4 \u0628\u064a\u0646 \u0645\u0627 \u0648\u0635\u0644\u0647 \u0645\u0646 P3 (M2) \u0648\u0645\u0627 \u0648\u0635\u0644\u0647 \u0645\u0646 P1 (M1) \u062f\u0648\u0646 \u0641\u0642\u062f\u0627\u0646 \u0623\u064a \u0645\u0639\u0644\u0648\u0645\u0629."},
+
+ {id:"c_4_5",phase:"compute",mx:"gen",current:"ev_4_5",animate:"msg_F",
+  title:"\u0625\u0631\u0633\u0627\u0644 P4 \u2192 P2",
+  what:"P4 \u064a\u0631\u0633\u0644 \u0631\u0633\u0627\u0644\u0629\u064b \u0625\u0644\u0649 P2.",
+  why:"\u0622\u062e\u0631 \u062d\u062f\u062b \u0639\u0644\u0649 P4.",
+  rule:"\u0625\u0631\u0633\u0627\u0644: M[P4][P4] += 1 \u062b\u0645 M[P4][P2] += 1.",
+  change:"M[P4][P4]: 4\u21925 \u0648 M[P4][P2]: 0\u21921.",
+  whynot:"\u0628\u0627\u0642\u064a \u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0629 \u062b\u0627\u0628\u062a\u060c \u0644\u0623\u0646\u0651 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0644\u0627 \u064a\u063a\u064a\u0651\u0631 \u0625\u0644\u0627 \u0627\u0644\u0642\u0637\u0631 \u0648\u062e\u0627\u0646\u0629 \u0627\u0644\u0648\u062c\u0647\u0629.",
+  carry:"\u062a\u062d\u0645\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0643\u0627\u0645\u0644 \u0645\u0635\u0641\u0648\u0641\u0629 P4 \u0628\u0639\u062f \u0627\u0644\u062a\u062d\u062f\u064a\u062b."},
+
+ {id:"c_2_5",phase:"compute",mx:"gen",current:"ev_2_5",animate:"msg_F",
+  title:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644 P2 \u0644\u0631\u0633\u0627\u0644\u0629 P4",
+  what:"P2 \u064a\u0633\u062a\u0642\u0628\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0623\u062e\u064a\u0631\u0629 \u0645\u0646 P4.",
+  why:"\u0622\u062e\u0631 \u062d\u062f\u062b \u0641\u064a \u0627\u0644\u0646\u0638\u0627\u0645.",
+  rule:"\u0627\u0633\u062a\u0642\u0628\u0627\u0644: M[P2][P2] += 1 \u062b\u0645 max \u0645\u0639 W.",
+  change:"M[P2][P2]: 4\u21925\u060c \u0648\u062a\u062d\u062f\u0651\u062b\u062a \u0635\u0641\u0648\u0641 P1\u060c P3\u060c P4 \u0628\u0623\u062e\u0630 \u0627\u0644\u0642\u064a\u0645 \u0627\u0644\u0623\u062d\u062f\u062b \u0645\u0646 W.",
+  whynot:"\u0627\u0644\u062e\u0627\u0646\u0627\u062a \u0627\u0644\u062a\u064a \u0643\u0627\u0646\u062a \u0623\u0635\u0644\u064b\u0627 \u0623\u062d\u062f\u062b \u062f\u0627\u062e\u0644 P2 \u0644\u0645 \u062a\u062a\u063a\u064a\u0651\u0631.",
+  carry:"\u062d\u0645\u0644\u062a \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0645\u0639\u0631\u0641\u0629 P4 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u0628\u0645\u0627 \u0641\u064a\u0647\u0627 \u0645\u0627 \u062a\u0639\u0644\u0651\u0645\u0647 \u0645\u0646 P1 \u0648 P3.",
+  recvwhy:"max \u064a\u0636\u0645\u0646 \u0623\u0646 \u062a\u0635\u0628\u062d \u0645\u0639\u0631\u0641\u0629 P2 \u0634\u0627\u0645\u0644\u0629 \u0644\u0643\u0644 \u0627\u0644\u0645\u0633\u0627\u0631\u0627\u062a."},
+
+ {id:"final",phase:"final",mx:"grid",
+  title:"\u0627\u0644\u062d\u0644 \u0627\u0644\u0646\u0647\u0627\u0626\u064a \u0648\u0627\u0644\u062e\u0644\u0627\u0635\u0629",
+  what:"\u0647\u0630\u0647 \u0645\u0635\u0641\u0648\u0641\u0627\u062a \u0627\u0644\u0633\u0627\u0639\u0629 \u0644\u0643\u0644 \u0627\u0644\u0623\u062d\u062f\u0627\u062b (\u0627\u0644\u0633\u0624\u0627\u0644 2)\u060c \u0648\u0642\u062f \u0635\u062d\u0651\u062d\u0646\u0627 \u0625\u0634\u0643\u0627\u0644 \u0634\u0631\u0637 \u0627\u0644\u062a\u0633\u0644\u064a\u0645 (\u0627\u0644\u0633\u0624\u0627\u0644 3) \u0628\u062c\u0639\u0644 M2 \u062a\u064f\u0633\u0644\u0651\u0645 \u0642\u0628\u0644 M1 \u0639\u0644\u0649 P4.",
+  why:"\u0628\u0647\u0630\u0627 \u0646\u0643\u0648\u0646 \u0642\u062f \u0623\u062c\u0628\u0646\u0627 \u0639\u0646 \u0627\u0644\u0623\u0633\u0626\u0644\u0629 \u0627\u0644\u062b\u0644\u0627\u062b\u0629 \u0628\u0627\u0644\u0643\u0627\u0645\u0644.",
+  rule:"\u062e\u0644\u0627\u0635\u0629 \u0627\u0644\u0645\u0646\u0647\u062c\u064a\u0629 \u0644\u062d\u0644 \u0623\u064a \u062a\u0645\u0631\u064a\u0646 \u0645\u0634\u0627\u0628\u0647 \u0645\u0648\u062c\u0648\u062f\u0629 \u0623\u062f\u0646\u0627\u0647."}
+];
+
+/* ===== Build SVG ===== */
+function el(tag,attrs){const e=document.createElementNS(SVGNS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+let svg;
+function buildSVG(){
+ svg=el("svg",{viewBox:"0 0 1120 300"});
+ const defs=el("defs");
+ function marker(id,color){const m=el("marker",{id:id,viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"7",markerHeight:"7",orient:"auto-start-reverse"});m.appendChild(el("path",{d:"M0,0 L10,5 L0,10 z",fill:color}));defs.appendChild(m);}
+ marker("ah","#8b93c4");marker("ahr","#ff5c7a");
+ svg.appendChild(defs);
+ // timelines
+ PROC.forEach(o=>{
+  svg.appendChild(el("line",{x1:60,y1:o.y,x2:1080,y2:o.y,class:"timeline"}));
+  const tx=el("text",{x:30,y:o.y+5,class:"plabel",fill:PCOL[o.p]});tx.textContent="P"+o.p;svg.appendChild(tx);
+ });
+ // messages
+ for(const id in MSG){const m=MSG[id];const g=el("g",{id:id,class:"msg "+(m.red?"red":"")+" hidden"});
+  g.appendChild(el("path",{d:m.d,stroke:m.red?"#ff5c7a":"#8b93c4"}));
+  const t=el("text",{x:m.lx,y:m.ly,fill:m.red?"#ff8aa1":"#aab2dc"});t.textContent=m.name;g.appendChild(t);
+  svg.appendChild(g);
+ }
+ // events
+ for(const id in EV){const e=EV[id];const g=el("g",{id:id,class:"ev hidden"});
+  g.appendChild(el("circle",{cx:e.x,cy:Y(e.p),r:6,fill:PCOL[e.p]}));
+  const t=el("text",{x:e.x,y:Y(e.p)-12,"text-anchor":"middle"});t.textContent=e.t;g.appendChild(t);
+  svg.appendChild(g);
+ }
+ document.getElementById("svgHost").appendChild(svg);
+}
+
+/* ===== Matrix render ===== */
+function matrixTable(m,hl,prev){
+ const hls=new Set((hl||[]).map(c=>c[0]+"-"+c[1]));
+ let h='<table class="mx"><tr><th class="corner">M</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th></tr>';
+ for(let r=0;r<4;r++){h+='<tr><th>P'+(r+1)+'</th>';for(let c=0;c<4;c++){const k=(r+1)+"-"+(c+1);const on=hls.has(k);h+='<td class="'+(on?'hl':(m[r][c]===0?'dim':''))+'">'+m[r][c]+'</td>';}h+='</tr>';}
+ return h+'</table>';
+}
+
+/* ===== Animation ===== */
+let animTimer=null;
+function animateMsg(msgId){
+ if(!msgId)return;const g=document.getElementById(msgId);if(!g)return;const path=g.querySelector("path");
+ const len=path.getTotalLength();const dot=el("circle",{r:6,class:"flydot"});svg.appendChild(dot);
+ const t0=performance.now();const dur=850;
+ function frame(t){const k=Math.min(1,(t-t0)/dur);const e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;const pt=path.getPointAtLength(e*len);dot.setAttribute("cx",pt.x);dot.setAttribute("cy",pt.y);if(k<1){requestAnimationFrame(frame);}else{dot.remove();}}
+ requestAnimationFrame(frame);
+}
+
+/* ===== State / render ===== */
+let idx=0;
+function cumulativeShow(upto){
+ const set=new Set();
+ for(let i=0;i<=upto;i++){const s=STEPS[i];if(s.adds)s.adds.forEach(a=>set.add(a));}
+ // once compute phase reached, show everything
+ if(STEPS[upto].phase!=="recon"){for(const id in EV)set.add(id);for(const id in MSG)set.add(id);}
+ return set;
+}
+function render(animate){
+ const s=STEPS[idx];
+ // phase chip
+ const chip=document.getElementById("phaseChip");chip.textContent=T[s.phase];chip.className="phasechip ph-"+s.phase;
+ document.getElementById("progFill").style.width=((idx)/(STEPS.length-1)*100)+"%";
+ document.getElementById("pcount").textContent=(idx+1)+" / "+STEPS.length;
+ // diagram visibility
+ const show=cumulativeShow(idx);
+ for(const id in EV){document.getElementById(id).classList.toggle("hidden",!show.has(id));}
+ for(const id in MSG){const g=document.getElementById(id);g.classList.toggle("hidden",!show.has(id));g.classList.remove("blocked");g.style.opacity="";}
+ // current pulse
+ document.querySelectorAll(".ev").forEach(e=>{e.classList.remove("cur","pulse");});
+ if(s.current){const g=document.getElementById(s.current);if(g){g.classList.add("cur","pulse");}}
+ // blocked message styling
+ if(s.blocked){const g=document.getElementById(s.blocked);if(g){g.querySelector("path").setAttribute("stroke-dasharray","6 5");g.style.opacity=".5";}}
+ else{for(const id in MSG){MSG_resetDash(id);}}
+ // side panel
+ renderSide(s);
+ // animation
+ if(animate&&s.animate){setTimeout(()=>animateMsg(s.animate),120);}
+ // buttons
+ document.getElementById("prevBtn").disabled=(idx===0);
+ document.getElementById("nextBtn").disabled=(idx===STEPS.length-1);
+}
+function MSG_resetDash(id){const g=document.getElementById(id);if(g)g.querySelector("path").removeAttribute("stroke-dasharray");}
+
+function sec(label,html){return html?'<div class="sec"><h4>'+label+'</h4><p>'+html+'</p></div>':'';}
+function renderSide(s){
+ const host=document.getElementById("side");
+ let mxHtml="";let mxLabel="\u0645\u0635\u0641\u0648\u0641\u0629 \u0627\u0644\u0633\u0627\u0639\u0629";
+ if(s.mx==="given"){mxHtml=matrixTable(GEN.given.matrix,s.hlOver);mxLabel="\u0645\u0635\u0641\u0648\u0641\u0629 e1 \u0627\u0644\u0645\u0639\u0637\u0627\u0629 (\u062f\u0644\u064a\u0644)";}
+ else if(s.mx==="gen"){const g=GEN[s.id];mxHtml=matrixTable(g.matrix,g.hl);mxLabel="\u0645\u0635\u0641\u0648\u0641\u0629 \u0627\u0644\u0633\u0627\u0639\u0629 \u0639\u0646\u062f "+g.event;}
+ else if(s.mx==="p4"){mxHtml=matrixTable(GEN.deliv.p4after_e42,s.hlOver);mxLabel="\u0645\u0635\u0641\u0648\u0641\u0629 P4 \u0627\u0644\u062d\u0627\u0644\u064a\u0629";}
+ else if(s.mx==="grid"){mxHtml=finalGrid();}
+ let head='<div class="steptitle">'+(GEN[s.id]&&GEN[s.id].event?'<span class="et">'+GEN[s.id].event+'</span> \u2014 ':'')+s.title+'</div>';
+ let body="";
+ body+=sec("\u0627\u0644\u0634\u0631\u062d",s.what+(s.why?' '+s.why:''));
+ if(s.rule)body+='<div class="sec"><h4>\u0627\u0644\u0642\u0627\u0639\u062f\u0629 \u0627\u0644\u0645\u0637\u0628\u0651\u0642\u0629</h4><div class="rulebox ltr" style="text-align:right">'+s.rule+'</div></div>';
+ if(s.carry)body+=sec("\u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0629 \u0627\u0644\u0645\u062d\u0645\u0648\u0644\u0629 \u0641\u064a \u0627\u0644\u0631\u0633\u0627\u0644\u0629",s.carry);
+ if(s.change||s.whynot){body+='<div class="sec"><h4>\u0627\u0644\u062a\u063a\u064a\u0651\u0631 \u0641\u064a \u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0629</h4><p>'+(s.change||"")+(s.whynot?'<br><span style="color:var(--muted)">\u0644\u0645\u0627\u0630\u0627 \u0644\u0645 \u062a\u062a\u063a\u064a\u0651\u0631 \u0627\u0644\u0628\u0627\u0642\u064a: </span>'+s.whynot:'')+'</p></div>';}
+ if(s.recvwhy)body+=sec("\u0644\u0645\u0627\u0630\u0627 \u064a\u062a\u0645 \u0627\u0644\u062a\u062d\u062f\u064a\u062b \u0647\u0643\u0630\u0627",s.recvwhy);
+ if(s.validate)body+='<div class="note green"><div class="ic">\u2705</div><div><strong>\u062a\u062d\u0642\u0651\u0642</strong><p>\u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0629 \u0627\u0644\u0645\u062d\u0633\u0648\u0628\u0629 \u0639\u0646\u062f e1 \u062a\u0637\u0627\u0628\u0642 \u062a\u0645\u0627\u0645\u064b\u0627 \u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0629 \u0627\u0644\u0645\u0639\u0637\u0627\u0629 \u0641\u064a \u0627\u0644\u0627\u0645\u062a\u062d\u0627\u0646 \u2014 \u0625\u0630\u0646 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0628\u0646\u0627\u0621 \u0635\u062d\u064a\u062d\u0629.</p></div></div>';
+ if(s.id==="deliv")body+='<div class="note red"><div class="ic">\u26d4</div><div><strong>\u0625\u0634\u0643\u0627\u0644 \u0641\u064a \u0634\u0631\u0637 \u0627\u0644\u062a\u0633\u0644\u064a\u0645</strong><p>\u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u0633\u0644\u064a\u0645 M1 \u0642\u0628\u0644 M2. \u0647\u0630\u0627 \u0647\u0648 \u0627\u0644\u062e\u0637\u0623 \u0627\u0644\u0645\u0637\u0644\u0648\u0628 \u062a\u0635\u062d\u064a\u062d\u0647 \u0641\u064a \u0627\u0644\u0633\u0624\u0627\u0644 3.</p></div></div>';
+ if(s.id==="final")body+=takeaways();
+ let mxBlock=(s.mx==="grid")?('<div class="sec"><h4>\u0627\u0644\u0646\u062a\u064a\u062c\u0629</h4>'+mxHtml+'</div>'):('<div class="mwrap"><div class="mlabel">'+mxLabel+'</div><div class="ltr">'+mxHtml+'</div></div>');
+ host.innerHTML=head+body+mxBlock;
+}
+function finalGrid(){
+ const order=["c_1_1","c_1_2","c_1_3","c_1_4","c_2_1","c_2_2","c_2_3","c_2_4","c_2_5","c_3_1","c_3_2","c_3_3","c_3_4","c_4_1","c_4_2","c_4_3","c_4_4","c_4_5"];
+ let h='<div class="final-grid">';
+ order.forEach(id=>{const g=GEN[id];h+='<div class="fm"><div class="t">'+g.event+'</div>'+matrixTable(g.matrix)+'</div>';});
+ return h+'</div>';
+}
+function takeaways(){
+ return '<div class="note blue"><div class="ic">\ud83e\udde0</div><div><strong>\u0627\u0644\u0645\u0646\u0647\u062c\u064a\u0629 \u0644\u062d\u0644 \u0623\u064a \u062a\u0645\u0631\u064a\u0646 Matrix Clock</strong><ul class="takeaways">'+
+  '<li>\u0635\u0641\u0651\u0631 \u0643\u0644 \u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0627\u062a \u0641\u064a \u0627\u0644\u0628\u062f\u0627\u064a\u0629 (\u0643\u0644\u0647\u0627 \u0623\u0635\u0641\u0627\u0631).</li>'+
+  '<li><strong>\u062d\u062f\u062b \u0645\u062d\u0644\u064a:</strong> <span class="ltr mono">M[i][i]+=1</span> \u0641\u0642\u0637.</li>'+
+  '<li><strong>\u0625\u0631\u0633\u0627\u0644:</strong> <span class="ltr mono">M[i][i]+=1</span> \u062b\u0645 <span class="ltr mono">M[i][j]+=1</span>\u060c \u062b\u0645 \u0623\u0631\u0641\u0642 \u0646\u0633\u062e\u0629 \u0645\u0646 \u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0629.</li>'+
+  '<li><strong>\u0627\u0633\u062a\u0642\u0628\u0627\u0644:</strong> <span class="ltr mono">M[i][i]+=1</span> \u062b\u0645 <span class="ltr mono">max</span> \u062e\u0627\u0646\u0629\u064b \u0628\u062e\u0627\u0646\u0629 \u0645\u0639 \u0627\u0644\u0645\u0635\u0641\u0648\u0641\u0629 \u0627\u0644\u0645\u062d\u0645\u0648\u0644\u0629 W.</li>'+
+  '<li>\u062a\u0623\u0643\u0651\u062f \u0645\u0646 <span class="ltr mono">W[j][i]=M[j][i]+1</span> \u0648 <span class="ltr mono">W[k][i]\u2264M[k][i]</span> \u0642\u0628\u0644 \u0623\u064a \u062a\u0633\u0644\u064a\u0645 (\u0634\u0631\u0637 \u0627\u0644\u062a\u0633\u0644\u064a\u0645).</li>'+
+  '<li>\u0627\u0633\u062a\u0639\u0645\u0644 \u0623\u064a \u0645\u0635\u0641\u0648\u0641\u0629 \u0645\u0639\u0637\u0627\u0629 \u0643\u0640\u00ab\u062f\u0644\u064a\u0644\u00bb \u0644\u0627\u0643\u062a\u0634\u0627\u0641 \u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0648\u0627\u0644\u0623\u062d\u062f\u0627\u062b \u0627\u0644\u0646\u0627\u0642\u0635\u0629.</li>'+
+  '<li>\u0639\u0627\u0644\u062c \u0627\u0644\u0623\u062d\u062f\u0627\u062b \u062f\u0627\u0626\u0645\u064b\u0627 \u062d\u0633\u0628 \u0627\u0644\u062a\u0631\u062a\u064a\u0628 \u0627\u0644\u0633\u0628\u0628\u064a (\u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0642\u0628\u0644 \u0627\u0644\u0627\u0633\u062a\u0642\u0628\u0627\u0644).</li>'+
+  '</ul></div></div>';
+}
+
+/* ===== Navigation ===== */
+function go(n){const ni=idx+n;if(ni<0||ni>=STEPS.length)return;const fwd=n>0;idx=ni;render(fwd);document.getElementById("player").scrollIntoView({behavior:"smooth",block:"nearest"});}
+function init(){
+ document.getElementById("givenMx").innerHTML=matrixTable(GEN.given.matrix);
+ buildSVG();
+ document.getElementById("nextBtn").addEventListener("click",()=>go(1));
+ document.getElementById("prevBtn").addEventListener("click",()=>go(-1));
+ document.getElementById("restartBtn").addEventListener("click",()=>{idx=0;render(false);document.getElementById("player").scrollIntoView({behavior:"smooth",block:"nearest"});});
+ document.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")go(1);else if(e.key==="ArrowRight")go(-1);});
+ render(false);
+}
+init();
+</script>
+</body>
+</html>
